@@ -173,11 +173,13 @@ public class Altimeter extends View {
     }
 
     public void setAltitude(float meters) {
-        if(mAltitude != meters){
-            mAltitude = meters;
-            invalidate();
-            requestLayout();
-        }
+        mAltitude = meters;
+        invalidate();
+        requestLayout();
+    }
+
+    public float getAltitude(){
+        return mAltitude;
     }
 
     @Override

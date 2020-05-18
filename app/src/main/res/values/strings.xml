@@ -1,6 +1,5 @@
 <resources>
-    <string name="app_name" translatable="false">Greta</string>
-    <string name="google_maps_key" templateMergeStrategy="preserve" translatable="false">AIzaSyA0MecAsPNdD43zYoFih3hgxh7_H2Gq5Co</string>
+    <string name="app_name">Greta</string>
     <string name="title_activity_maps">Map</string>
     <string name="title_activity_main">MainActivity</string>
     <string name="title_settings">Settings</string>
@@ -10,25 +9,6 @@
     <string name="permission_location_message">Greta needs to access your location</string>
     <string name="grant">Grant</string>
     <string name="cancel">Cancel</string>
-    <!-- Firebase Database -->
-    <string name="firebase_child_data" translatable="false">data</string>
-    <string name="firebase_child_users" translatable="false">users</string>
-
-    <!-- Sync Preferences -->
-    <string name="username_title">Username</string>
-    <string name="localisation_provider_title">Localisation provider</string>
-    <string name="localisation_update_time_frequency_title">Localisation refresh time</string>
-    <string name="localisation_update_distance_frequency_title">Localisation refresh distance</string>
-    <string name="measure_title">Unit</string>
-    <string name="username_key" translatable="false">username</string>
-    <string name="localisation_provider_key" translatable="false">localisation_provider</string>
-    <string name="localisation_update_time_frequency_key" translatable="false">localisation_update_time_frequency</string>
-    <string name="localisation_update_distance_frequency_key" translatable="false">localisation_update_distance_frequency</string>
-    <string name="measure_key" translatable="false">measure</string>
-    <string name="localisation_providers_default" translatable="false">network</string>
-    <string name="localisation_update_time_frequency_default" translatable="false">5000</string>
-    <string name="localisation_update_distance_frequency_default" translatable="false">10</string>
-    <string name="localisation_automatic_key" translatable="false">localisation_automatic</string>
-    <string name="unknown_user">Unknown user</string>
-    <string name="localisation_automatic_title">Automatic</string>
+    <string name="firebase_child_data">data</string>
+    <string name="firebase_child_users">users</string>
 </resources>
