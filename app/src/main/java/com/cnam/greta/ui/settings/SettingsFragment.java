@@ -1,35 +1,46 @@
 package com.cnam.greta.ui.settings;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.TextView;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProviders;
+import androidx.preference.PreferenceFragmentCompat;
 
 import com.cnam.greta.R;
 
-public class SettingsFragment extends Fragment {
+public class SettingsFragment extends PreferenceFragmentCompat {
 
-    private SettingsViewModel settingsViewModel;
+    private final SharedPreferences.OnSharedPreferenceChangeListener preferenceChangeListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
+        @Override
+        public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+            setCustomLocationState();
+        }
+    };
 
-    public View onCreateView(@NonNull LayoutInflater inflater,
-                             ViewGroup container, Bundle savedInstanceState) {
-        settingsViewModel =
-                ViewModelProviders.of(this).get(SettingsViewModel.class);
-        View root = inflater.inflate(R.layout.fragment_settings, container, false);
-        final TextView textView = root.findViewById(R.id.text_dashboard);
-        settingsViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
-            @Override
-            public void onChanged(@Nullable String s) {
-                textView.setText(s);
-            }
-        });
-        return root;
+    @Override
+    public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+        setPreferencesFromResource(R.xml.root_preferences, rootKey);
+        setCustomLocationState();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        getPreferenceScreen().getSharedPreferences().registerOnSharedPreferenceChangeListener(preferenceChangeListener);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        getPreferenceScreen().getSharedPreferences().unregisterOnSharedPreferenceChangeListener(preferenceChangeListener);
+    }
+
+    private void setCustomLocationState(){
+        boolean isAutomatic = getPreferenceScreen().getSharedPreferences().getBoolean(
+                requireActivity().getString(R.string.localisation_automatic_key),
+                true
+        );
+        getPreferenceScreen().findPreference(requireActivity().getString(R.string.localisation_provider_key)).setEnabled(!isAutomatic);
+        getPreferenceScreen().findPreference(requireActivity().getString(R.string.localisation_update_time_frequency_key)).setEnabled(!isAutomatic);
+        getPreferenceScreen().findPreference(requireActivity().getString(R.string.localisation_update_distance_frequency_key)).setEnabled(!isAutomatic);
     }
 }

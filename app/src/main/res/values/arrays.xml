@@ -1,0 +1,53 @@
+<resources>
+
+    <string-array name="localisation_providers">
+        <item>Network (faster)</item>
+        <item>Gps (slower)</item>
+    </string-array>
+
+    <string-array name="localisation_providers_values">
+        <item>network</item>
+        <item>gps</item>
+    </string-array>
+
+    <string-array name="localisation_update_time_frequency">
+        <item>1 second</item>
+        <item>5 seconds</item>
+        <item>10 seconds</item>
+        <item>30 seconds</item>
+        <item>60 seconds</item>
+    </string-array>
+
+    <string-array name="localisation_update_time_frequency_values">
+        <item>1000</item>
+        <item>5000</item>
+        <item>10000</item>
+        <item>30000</item>
+        <item>60000</item>
+    </string-array>
+
+    <string-array name="localisation_update_distance_frequency">
+        <item>10 meters</item>
+        <item>50 meters</item>
+        <item>100 meters</item>
+        <item>250 meters</item>
+    </string-array>
+
+    <string-array name="localisation_update_distance_frequency_values">
+        <item>10</item>
+        <item>50</item>
+        <item>100</item>
+        <item>250</item>
+    </string-array>
+
+    <string-array name="measure">
+        <item>Kilometers</item>
+        <item>Miles</item>
+    </string-array>
+
+    <string-array name="measure_values">
+        <item>km</item>
+        <item>miles</item>
+    </string-array>
+
+</resources>
