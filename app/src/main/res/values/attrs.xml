@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="Altimeter">
+        <attr name="backgroundColor" format="color"/>
+        <attr name="showMarker" format="boolean"/>
+        <attr name="markerColor" format="color"/>
+        <attr name="lineColor" format="color"/>
+        <attr name="textColor" format="color"/>
+        <attr name="textSize" format="dimension"/>
+        <attr name="meters" format="integer"/>
+        <attr name="rangeMeters" format="integer"/>
+    </declare-styleable>
+</resources>

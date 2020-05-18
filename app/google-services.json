@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "270016819579",
+    "firebase_url": "https://greta-64c0b.firebaseio.com",
+    "project_id": "greta-64c0b",
+    "storage_bucket": "greta-64c0b.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270016819579:android:aebf64b21ff8ec368c4dde",
+        "android_client_info": {
+          "package_name": "com.cnam.greta"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "270016819579-g44qaf4l6c1uv8u5qjigdo8stkq8p955.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cnam.greta",
+            "certificate_hash": "71fc4818d475c307dd995ce5fefd5e592aa97b7e"
+          }
+        },
+        {
+          "client_id": "270016819579-5kora02972ojuv1dgfp9t94pauk5p90h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0MecAsPNdD43zYoFih3hgxh7_H2Gq5Co"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "270016819579-5kora02972ojuv1dgfp9t94pauk5p90h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
