@@ -1,8 +1,8 @@
 <resources>
 
     <string-array name="localisation_providers">
-        <item>Network (faster)</item>
-        <item>Gps (slower)</item>
+        <item>Network</item>
+        <item>Gps</item>
     </string-array>
 
     <string-array name="localisation_providers_values">

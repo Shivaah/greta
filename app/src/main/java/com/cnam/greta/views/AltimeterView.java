@@ -1,4 +1,4 @@
-package com.cnam.greta.view;
+package com.cnam.greta.views;
 
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -6,6 +6,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.util.AttributeSet;
@@ -13,7 +14,7 @@ import android.view.View;
 
 import com.cnam.greta.R;
 
-public class Altimeter extends View {
+public class AltimeterView extends View {
 
     private final static String ALTITUDE_KEY = "altitude";
     private final static String INSTANCE_KEY = "instanceState";
@@ -25,19 +26,29 @@ public class Altimeter extends View {
     private float mAltitude, mTextSize, mRange;
     private boolean mShowMarker;
 
-    public Altimeter(Context context, AttributeSet attrs) {
+    private float minAltitudeValue;
+    private float maxAltitudeValue;
+
+    private int[] colors;
+    private float[] hsv;
+    private GradientDrawable gradientDrawable;
+
+
+    public AltimeterView(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        TypedArray a = context.getTheme().obtainStyledAttributes(attrs, R.styleable.Altimeter, 0, 0);
+        TypedArray a = context.getTheme().obtainStyledAttributes(attrs, R.styleable.AltimeterView, 0, 0);
 
-        mBackgroundColor = a.getColor(R.styleable.Altimeter_backgroundColor, Color.BLACK);
-        mMarkerColor = a.getColor(R.styleable.Altimeter_markerColor, Color.RED);
-        mShowMarker = a.getBoolean(R.styleable.Altimeter_showMarker, true);
-        mLineColor = a.getColor(R.styleable.Altimeter_lineColor, Color.WHITE);
-        mTextColor = a.getColor(R.styleable.Altimeter_textColor, Color.WHITE);
-        mTextSize = a.getDimension(R.styleable.Altimeter_textSize, 15 * getResources().getDisplayMetrics().scaledDensity);
-        mAltitude = a.getFloat(R.styleable.Altimeter_meters, 0);
-        mRange = a.getFloat(R.styleable.Altimeter_rangeMeters, 500);
+        mBackgroundColor = a.getColor(R.styleable.AltimeterView_backgroundColor, Color.BLACK);
+        mMarkerColor = a.getColor(R.styleable.AltimeterView_markerColor, Color.RED);
+        mShowMarker = a.getBoolean(R.styleable.AltimeterView_showMarker, true);
+        mLineColor = a.getColor(R.styleable.AltimeterView_lineColor, Color.WHITE);
+        mTextColor = a.getColor(R.styleable.AltimeterView_textColor, Color.WHITE);
+        mTextSize = a.getDimension(R.styleable.AltimeterView_textSize, 15 * getResources().getDisplayMetrics().scaledDensity);
+        mAltitude = a.getFloat(R.styleable.AltimeterView_meters, 0);
+        mRange = a.getFloat(R.styleable.AltimeterView_rangeMeters, 500);
+        minAltitudeValue = a.getFloat(R.styleable.AltimeterView_minAltitudeValue, 0);
+        maxAltitudeValue = a.getFloat(R.styleable.AltimeterView_maxAltitudeValue, 4000);
         a.recycle();
         init();
     }
@@ -58,6 +69,10 @@ public class Altimeter extends View {
         mMarkerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mMarkerPaint.setStyle(Paint.Style.FILL);
         pathMarker = new Path();
+
+        colors = new int[(int) (mRange / 25) + 1];
+        hsv = new float[3];
+        gradientDrawable = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, colors);
     }
 
     @Override
@@ -135,8 +150,6 @@ public class Altimeter extends View {
 
         mMarkerPaint.setColor(mMarkerColor);
 
-        canvas.drawColor(mBackgroundColor);
-
         int width = getMeasuredWidth();
         int height = getMeasuredHeight();
 
@@ -153,23 +166,31 @@ public class Altimeter extends View {
         int maxAltitude = Math.round(mAltitude + mRange / 2);
 
         if (mShowMarker) {
-            pathMarker.moveTo(width / 2, 3 * unitHeight + paddingTop);
-            pathMarker.lineTo((width / 2) + 20, paddingTop);
-            pathMarker.lineTo((width / 2) - 20, paddingTop);
+            pathMarker.moveTo((float) width / 2, 3 * unitHeight + paddingTop);
+            pathMarker.lineTo(((float) width / 2) + 20, paddingTop);
+            pathMarker.lineTo(((float) width / 2) - 20, paddingTop);
             pathMarker.close();
             canvas.drawPath(pathMarker, mMarkerPaint);
         }
 
-        for (int i = minAltitude; i <= maxAltitude; i++) {
+        for (int i = minAltitude, j = 0; i <= maxAltitude; i++) {
             if (i % 100 == 0) {
-                canvas.drawText(String.valueOf(i), paddingLeft + pixDeg * (i - minAltitude), (height / 2) + (mTextSize / 3), mTextPaint);
+                canvas.drawText(String.valueOf(i), paddingLeft + pixDeg * (i - minAltitude), ((float) height / 2) + (mTextSize / 3), mTextPaint);
             }
             if(i % 25 == 0){
                 canvas.drawLine(paddingLeft + pixDeg * (i - minAltitude), height - paddingBottom,
                         paddingLeft + pixDeg * (i - minAltitude), 10 * unitHeight + paddingTop,
                         mTerciaryLinePaint);
+
+                hsv[0] = ((float) i/ (maxAltitudeValue - minAltitudeValue)) * 360;
+                hsv[1] = 1.0f;
+                hsv[2] = 0.8f;
+                colors[j] = Color.HSVToColor(255, hsv);
+                j++;
             }
         }
+        gradientDrawable.setColors(colors);
+        setBackground(gradientDrawable);
     }
 
     public void setAltitude(float meters) {
@@ -178,6 +199,10 @@ public class Altimeter extends View {
             invalidate();
             requestLayout();
         }
+    }
+
+    public float getmAltitude() {
+        return mAltitude;
     }
 
     @Override
@@ -221,5 +246,13 @@ public class Altimeter extends View {
         mRange = range;
         invalidate();
         requestLayout();
+    }
+
+    public void setMinAltitudeValue(float minAltitudeValue) {
+        this.minAltitudeValue = minAltitudeValue;
+    }
+
+    public void setMaxAltitudeValue(float maxAltitudeValue) {
+        this.maxAltitudeValue = maxAltitudeValue;
     }
 }

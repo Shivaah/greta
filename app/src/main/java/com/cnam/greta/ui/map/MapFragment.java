@@ -1,13 +1,15 @@
 package com.cnam.greta.ui.map;
 
 import android.annotation.SuppressLint;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.Bundle;
-import android.provider.Settings;
+import android.os.IBinder;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,19 +17,27 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
-import androidx.preference.PreferenceManager;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 
 import com.cnam.greta.R;
-import com.cnam.greta.model.LocationModel;
-import com.cnam.greta.view.Altimeter;
+import com.cnam.greta.database.entities.Track;
+import com.cnam.greta.database.entities.TrackDetails;
+import com.cnam.greta.database.entities.WayPoint;
+import com.cnam.greta.database.repositories.TrackRepository;
+import com.cnam.greta.services.LocationService;
+import com.cnam.greta.views.AltimeterView;
+import com.cnam.greta.views.richmaps.RichLayer;
+import com.cnam.greta.views.richmaps.RichPoint;
+import com.cnam.greta.views.richmaps.RichPolylineOptions;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -36,18 +46,56 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-import static android.content.Context.LOCATION_SERVICE;
+public class MapFragment extends Fragment {
 
-public class MapFragment extends Fragment{
-
-    private View rootView;
-
-    private MapView mMapView;
+    //Google Map
     private GoogleMap mGoogleMap;
-    private Altimeter mAltimeter;
+
+    //Firebase
     private DatabaseReference usersDatabaseReference;
+
+    //Views
+    private RichLayer richLayer;
+    private View rootView;
+    private MapView mMapView;
+    private AltimeterView mAltimeterView;
+
+    //Service
+    private LocationService locationService;
+
+    //Data
+    private HashMap<String, Marker> markers = new HashMap<>();
+    private LiveData<TrackDetails> currentTrackDetails;
+
+    private final Observer<TrackDetails> trackDetailsObserver = new Observer<TrackDetails>() {
+        @Override
+        public void onChanged(TrackDetails trackDetails) {
+            //Update the UI
+            if(trackDetails.getWayPoints().size() != 0){
+                List<WayPoint> wayPoints = trackDetails.getWayPoints();
+                RichPolylineOptions polylineOpts = new RichPolylineOptions(null)
+                        .zIndex(3)
+                        .strokeWidth(15)
+                        .strokeColor(Color.GRAY)
+                        .linearGradient(true);
+                for (WayPoint wayPoint : wayPoints){
+                    float altitudeRatio = (float) (wayPoint.getAltitude() / 4000);
+                    int color = Color.HSVToColor(255, new float[]{altitudeRatio * 360, 1.0f, 0.8f});
+                    polylineOpts.add(new RichPoint(new LatLng(wayPoint.getLatitude(), wayPoint.getLongitude())).color(color));
+                }
+                WayPoint lastWayPoint = trackDetails.getWayPoints().get(trackDetails.getWayPoints().size() - 1);
+                richLayer.addShape(polylineOpts.build());
+                CameraUpdate center= CameraUpdateFactory.newLatLng(new LatLng(lastWayPoint.getLatitude(), lastWayPoint.getLongitude()));
+                CameraUpdate zoom = CameraUpdateFactory.zoomTo(16);
+                mAltimeterView.setAltitude((float) lastWayPoint.getAltitude());
+                mGoogleMap.moveCamera(center);
+                mGoogleMap.animateCamera(zoom);
+            }
+        }
+    };
 
     /**
      * Callback for Firebase data changes on "users" child
@@ -56,11 +104,21 @@ public class MapFragment extends Fragment{
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
             if(dataSnapshot.getValue() != null){
-                mGoogleMap.clear();
                 HashMap<String, HashMap<String, Object>> users = (HashMap<String, HashMap<String, Object>>) dataSnapshot.getValue();
                 for (Map.Entry<String, HashMap<String, Object>> user : users.entrySet()){
-                    LatLng userPosition = new LatLng((Double) user.getValue().get("latitude"), (Double) user.getValue().get("longitude"));
-                    mGoogleMap.addMarker(new MarkerOptions().position(userPosition).title((String) user.getValue().get("username")));
+                    LatLng position = new LatLng((double) user.getValue().get("latitude"), (double) user.getValue().get("longitude"));
+                    String username = (String) user.getValue().get("username");
+                    Marker marker = markers.get(user.getKey());
+                    if(marker == null){
+                        marker = mGoogleMap.addMarker(new MarkerOptions()
+                                .position(position)
+                                .title(username)
+                        );
+                    } else {
+                        marker.setPosition(position);
+                        marker.setTitle(username);
+                    }
+                    markers.put(user.getKey(), marker);
                 }
             }
         }
@@ -78,46 +136,26 @@ public class MapFragment extends Fragment{
         @Override
         public void onMapReady(GoogleMap map) {
             mGoogleMap = map;
+            mGoogleMap.setOnCameraIdleListener(mOnCameraChangeListener);
             mGoogleMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
+            richLayer = new RichLayer.Builder(mMapView, mGoogleMap).build();
         }
     };
 
-    /**
-     * Callback for location changes
-     */
-    private final LocationListener locationListener = new LocationListener() {
-        @SuppressLint("HardwareIds")
+    private final LocationService.TrackListener trackListener = new LocationService.TrackListener() {
         @Override
-        public void onLocationChanged(Location location) {
-            SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext());
-            usersDatabaseReference.child(Settings.Secure.getString(requireActivity().getContentResolver(), Settings.Secure.ANDROID_ID))
-                    .setValue(new LocationModel(
-                            sharedPreferences.getString(requireContext().getString(R.string.username_key), getString(R.string.unknown_user)),
-                            location.getLatitude(),
-                            location.getLongitude(),
-                            location.getAltitude()
-                    ));
-
-            CameraUpdate center= CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude()));
-            CameraUpdate zoom = CameraUpdateFactory.zoomTo(10);
-            mAltimeter.setAltitude((float) location.getAltitude());
-            mGoogleMap.moveCamera(center);
-            mGoogleMap.animateCamera(zoom);
+        public void onTrackReady(Track track) {
+            currentTrackDetails = new TrackRepository(requireContext()).getTrackDetails(track.getTrackId());
+            currentTrackDetails.observe(getViewLifecycleOwner(), trackDetailsObserver);
         }
+    };
 
+    private final GoogleMap.OnCameraIdleListener mOnCameraChangeListener = new GoogleMap.OnCameraIdleListener() {
         @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-            //Deprecated
-        }
-
-        @Override
-        public void onProviderEnabled(String provider) {
-            Log.i(this.getClass().getSimpleName(), "Provider enabled : " + provider);
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-            Log.i(this.getClass().getSimpleName(), "Provider disabled : " + provider);
+        public void onCameraIdle() {
+            if(richLayer != null){
+                richLayer.refresh();
+            }
         }
     };
 
@@ -135,7 +173,7 @@ public class MapFragment extends Fragment{
             rootView = inflater.inflate(R.layout.fragment_map, container, false);
 
             mMapView = rootView.findViewById(R.id.map);
-            mAltimeter = rootView.findViewById(R.id.altimeter);
+            mAltimeterView = rootView.findViewById(R.id.altimeter);
 
             mMapView.onCreate(savedInstanceState);
             mMapView.getMapAsync(mapReadyCallback);
@@ -147,35 +185,17 @@ public class MapFragment extends Fragment{
     public void onResume() {
         super.onResume();
         mMapView.onResume();
-        LocationManager locationManager = (LocationManager) requireContext().getSystemService(LOCATION_SERVICE);
-        if (locationManager != null && ContextCompat.checkSelfPermission( requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION ) == PackageManager.PERMISSION_GRANTED ) {
-            SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext());
-            int minMillis = Integer.parseInt(sharedPreferences.getString(
-                    requireContext().getString(R.string.localisation_update_time_frequency_key),
-                    requireContext().getString(R.string.localisation_update_time_frequency_default)
-            ));
-            int minDistance = Integer.parseInt(sharedPreferences.getString(
-                    requireContext().getString(R.string.localisation_update_distance_frequency_key),
-                    requireContext().getString(R.string.localisation_update_distance_frequency_default)
-            ));
-            String provider = sharedPreferences.getString(
-                    requireContext().getString(R.string.localisation_provider_key),
-                    requireContext().getString(R.string.localisation_providers_default)
-            );
-            locationManager.requestLocationUpdates(provider, minMillis, minDistance, locationListener);
-        }
         usersDatabaseReference.addValueEventListener(usersListener);
+        Intent intent = new Intent(requireActivity(), LocationService.class);
+        requireActivity().bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
     }
 
     @Override
     public void onPause() {
         super.onPause();
         mMapView.onPause();
-        LocationManager locationManager = (LocationManager) requireContext().getSystemService(LOCATION_SERVICE);
-        if(locationManager != null){
-            locationManager.removeUpdates(locationListener);
-        }
         usersDatabaseReference.removeEventListener(usersListener);
+        requireActivity().unbindService(serviceConnection);
     }
 
     @Override
@@ -189,4 +209,17 @@ public class MapFragment extends Fragment{
         super.onLowMemory();
         mMapView.onLowMemory();
     }
+
+    private ServiceConnection serviceConnection = new ServiceConnection() {
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            locationService = ((LocationService.LocationServiceBinder) service).getService();
+            locationService.setTrackListener(trackListener);
+        }
+
+        public void onServiceDisconnected(ComponentName className) {
+            currentTrackDetails.removeObserver(trackDetailsObserver);
+            locationService.removeTrackListener();
+            locationService = null;
+        }
+    };
 }

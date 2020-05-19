@@ -1,13 +1,13 @@
-package com.cnam.greta.model;
+package com.cnam.greta.models;
 
-public class LocationModel {
+public class UserPosition {
 
     private String username;
     private double latitude;
     private double longitude;
     private double altitude;
 
-    public LocationModel(String username, double latitude, double longitude, double altitude) {
+    public UserPosition(String username, double latitude, double longitude, double altitude) {
         this.username = username;
         this.latitude = latitude;
         this.longitude = longitude;

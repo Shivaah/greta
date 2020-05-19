@@ -31,4 +31,9 @@
     <string name="localisation_automatic_key" translatable="false">localisation_automatic</string>
     <string name="unknown_user">Unknown user</string>
     <string name="localisation_automatic_title">Automatic</string>
+    <string name="title_activity_track_details">Map</string>
+    <string name="extra_track_id" translatable="false">extra_track_details</string>
+    <string name="distance_holder">Distance : %d</string>
+    <string name="duration_holder">Duration : %d</string>
+    <string name="waypoints_hodler">Waypoints : %d</string>
 </resources>

@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     tools:context=".ui.history.HistoryFragment">
 
-    <com.cnam.greta.view.Altimeter
+    <com.cnam.greta.views.AltimeterView
         android:id="@+id/altimeter"
         android:layout_width="match_parent"
         android:layout_height="25dp"
