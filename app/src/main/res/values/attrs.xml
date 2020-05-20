@@ -1,12 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <declare-styleable name="AltimeterView">
+
+    <declare-styleable name="Application">
         <attr name="backgroundColor" format="color"/>
         <attr name="showMarker" format="boolean"/>
         <attr name="markerColor" format="color"/>
         <attr name="lineColor" format="color"/>
         <attr name="textColor" format="color"/>
         <attr name="textSize" format="dimension"/>
+    </declare-styleable>
+
+    <declare-styleable name="CompassView" parent="Application">
+        <attr name="degrees" format="integer"/>
+        <attr name="rangeDegrees" format="float"/>
+    </declare-styleable>
+
+    <declare-styleable name="AltimeterView" parent="Application">
         <attr name="meters" format="integer"/>
         <attr name="rangeMeters" format="integer"/>
         <attr name="minAltitudeValue" format="float"/>

@@ -1,12 +1,12 @@
-package com.cnam.greta.database.repositories;
+package com.cnam.greta.data.repositories;
 
 import android.content.Context;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
-import com.cnam.greta.database.GretaDatabase;
-import com.cnam.greta.database.entities.WayPoint;
+import com.cnam.greta.data.GretaDatabase;
+import com.cnam.greta.data.entities.WayPoint;
 
 import java.util.List;
 

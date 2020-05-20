@@ -1,4 +1,4 @@
-package com.cnam.greta.database.entities;
+package com.cnam.greta.data.entities;
 
 import androidx.room.Embedded;
 import androidx.room.Relation;

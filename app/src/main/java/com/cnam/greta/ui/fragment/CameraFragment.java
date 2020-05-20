@@ -2,6 +2,7 @@ package com.cnam.greta.ui.fragment;
 
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -14,6 +15,10 @@ import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -29,6 +34,7 @@ import android.media.ImageReader;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.provider.Settings;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -40,13 +46,24 @@ import android.view.ViewGroup;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.Fragment;
 
 import com.cnam.greta.R;
+import com.cnam.greta.data.entities.UserPosition;
 import com.cnam.greta.views.AutoFitTextureView;
+import com.cnam.greta.views.CompassView;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -56,9 +73,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+
+import static android.content.Context.SENSOR_SERVICE;
 
 public class CameraFragment extends Fragment implements ActivityCompat.OnRequestPermissionsResultCallback {
 
@@ -336,6 +357,92 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
 
     };
 
+    private CompassView compass;
+    private SensorManager mSensorManager;
+    private Sensor mAccelerometer;
+    private Sensor mMagnetic;
+    float[] gravity;
+    float[] geomagnetic;
+
+    private SensorEventListener sensorEventListener = new SensorEventListener() {
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+
+            if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
+                gravity = event.values;
+
+            if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
+                geomagnetic = event.values;
+
+            if (gravity != null && geomagnetic != null) {
+                float[] R = new float[9];
+                float[] I = new float[9];
+
+                if (SensorManager.getRotationMatrix(R, I, gravity, geomagnetic)) {
+                    // orientation contains azimut, pitch and roll
+                    float[] orientation = new float[3];
+                    SensorManager.getOrientation(R, orientation);
+                    float azimut = (float) ((Math.toDegrees(orientation[0]) + 360) % 360);
+                    compass.setDegrees(azimut);
+                }
+            }
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+        }
+    };
+
+    private HashMap<String, UserPosition> users = new HashMap<>();
+    private DatabaseReference usersDatabaseReference;
+
+    private final ChildEventListener usersListener = new ChildEventListener() {
+        @SuppressLint("HardwareIds")
+        @Override
+        public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+            if(dataSnapshot.getKey() != null && !dataSnapshot.getKey().equals(Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ANDROID_ID))){
+                HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
+                if(user != null){
+                    UserPosition userPosition = new UserPosition();
+                    userPosition.setUsername((String) user.get(getString(R.string.username_firebase_model_key)));
+                    userPosition.setAltitude((double) user.get(getString(R.string.latitude_firebase_model_key)));
+                    userPosition.setLatitude((double) user.get(getString(R.string.latitude_firebase_model_key)));
+                    userPosition.setLongitude((double) user.get(getString(R.string.longitude_firebase_model_key)));
+                    user.put(dataSnapshot.getKey(), userPosition);
+                }
+            }
+        }
+
+        @Override
+        public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+            UserPosition userPosition = users.get(dataSnapshot.getKey());
+            HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
+            if(user != null && userPosition != null){
+                userPosition.setUsername((String) user.get(getString(R.string.username_firebase_model_key)));
+                userPosition.setAltitude((double) user.get(getString(R.string.latitude_firebase_model_key)));
+                userPosition.setLatitude((double) user.get(getString(R.string.latitude_firebase_model_key)));
+                userPosition.setLongitude((double) user.get(getString(R.string.longitude_firebase_model_key)));
+                user.put(dataSnapshot.getKey(), userPosition);
+            }
+        }
+
+        @Override
+        public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
+            users.remove(dataSnapshot.getKey());
+        }
+
+        @Override
+        public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+
+        }
+
+        @Override
+        public void onCancelled(@NonNull DatabaseError databaseError) {
+            Log.w(this.getClass().getSimpleName(), databaseError.getMessage());
+        }
+    };
+
     /**
      * Shows a {@link Toast} on the UI thread.
      *
@@ -369,8 +476,7 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
      * @param aspectRatio       The aspect ratio
      * @return The optimal {@code Size}, or an arbitrary one if none were big enough
      */
-    private static Size chooseOptimalSize(Size[] choices, int textureViewWidth,
-                                          int textureViewHeight, int maxWidth, int maxHeight, Size aspectRatio) {
+    private static Size chooseOptimalSize(Size[] choices, int textureViewWidth, int textureViewHeight, int maxWidth, int maxHeight, Size aspectRatio) {
 
         // Collect the supported resolutions that are at least as big as the preview Surface
         List<Size> bigEnough = new ArrayList<>();
@@ -407,20 +513,31 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        usersDatabaseReference = FirebaseDatabase.getInstance()
+                .getReference(getString(R.string.firebase_child_data))
+                .child(getString(R.string.firebase_child_users));
+    }
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_camera, container, false);
     }
 
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
         mTextureView = view.findViewById(R.id.texture);
+        compass = view.findViewById(R.id.compass);
     }
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         mFile = new File(getActivity().getExternalFilesDir(null), "pic.jpg");
+        mSensorManager = (SensorManager) requireActivity().getSystemService(SENSOR_SERVICE);
+        mAccelerometer = Objects.requireNonNull(mSensorManager).getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        mMagnetic = Objects.requireNonNull(mSensorManager).getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
     }
 
     @Override
@@ -432,12 +549,17 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
         } else {
             mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
         }
+        mSensorManager.registerListener(sensorEventListener, mAccelerometer, SensorManager.SENSOR_DELAY_UI);
+        mSensorManager.registerListener(sensorEventListener, mMagnetic, SensorManager.SENSOR_DELAY_UI);
+        usersDatabaseReference.addChildEventListener(usersListener);
     }
 
     @Override
     public void onPause() {
         closeCamera();
         stopBackgroundThread();
+        mSensorManager.unregisterListener(sensorEventListener);
+        usersDatabaseReference.removeEventListener(usersListener);
         super.onPause();
     }
 
@@ -870,6 +992,50 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
             requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
                     CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
         }
+    }
+
+    /**
+     * Saves a JPEG {@link Image} into the specified {@link File}.
+     */
+    private static class ImageSaver implements Runnable {
+
+        /**
+         * The JPEG image
+         */
+        private final Image mImage;
+        /**
+         * The file we save the image into.
+         */
+        private final File mFile;
+
+        ImageSaver(Image image, File file) {
+            mImage = image;
+            mFile = file;
+        }
+
+        @Override
+        public void run() {
+            ByteBuffer buffer = mImage.getPlanes()[0].getBuffer();
+            byte[] bytes = new byte[buffer.remaining()];
+            buffer.get(bytes);
+            FileOutputStream output = null;
+            try {
+                output = new FileOutputStream(mFile);
+                output.write(bytes);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                mImage.close();
+                if (null != output) {
+                    try {
+                        output.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+
     }
 
     /**

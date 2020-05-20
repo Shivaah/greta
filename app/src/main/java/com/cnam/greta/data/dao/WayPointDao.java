@@ -1,10 +1,10 @@
-package com.cnam.greta.database.dao;
+package com.cnam.greta.data.dao;
 
 import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Query;
 
-import com.cnam.greta.database.entities.WayPoint;
+import com.cnam.greta.data.entities.WayPoint;
 
 import java.util.List;
 

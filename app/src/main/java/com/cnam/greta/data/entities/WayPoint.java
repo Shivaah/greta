@@ -1,16 +1,18 @@
-package com.cnam.greta.database.entities;
+package com.cnam.greta.data.entities;
 
 
 import androidx.room.Entity;
 import androidx.room.ForeignKey;
 import androidx.room.PrimaryKey;
 
+import static androidx.room.ForeignKey.CASCADE;
+
 @Entity
 public class WayPoint{
 
     @PrimaryKey(autoGenerate = true)
     private int wayPointId;
-    @ForeignKey(entity = Track.class, parentColumns = "trackId", childColumns = "wayPointId")
+    @ForeignKey(entity = Track.class, parentColumns = "trackId", childColumns = "wayPointId", onDelete = CASCADE)
     private long trackId;
     private double latitude;
     private double longitude;

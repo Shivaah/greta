@@ -1,6 +1,5 @@
-package com.cnam.greta.database.dao;
+package com.cnam.greta.data.dao;
 
-import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Delete;
 import androidx.room.Insert;

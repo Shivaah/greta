@@ -24,11 +24,11 @@ import androidx.lifecycle.Observer;
 import androidx.preference.PreferenceManager;
 
 import com.cnam.greta.R;
-import com.cnam.greta.database.entities.Track;
-import com.cnam.greta.database.entities.WayPoint;
-import com.cnam.greta.database.repositories.TrackRepository;
-import com.cnam.greta.database.repositories.WayPointRepository;
-import com.cnam.greta.models.UserPosition;
+import com.cnam.greta.data.entities.Track;
+import com.cnam.greta.data.entities.WayPoint;
+import com.cnam.greta.data.repositories.TrackRepository;
+import com.cnam.greta.data.repositories.WayPointRepository;
+import com.cnam.greta.data.entities.UserPosition;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 

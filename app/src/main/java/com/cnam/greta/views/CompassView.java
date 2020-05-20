@@ -5,8 +5,6 @@ import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.util.AttributeSet;
@@ -14,43 +12,35 @@ import android.view.View;
 
 import com.cnam.greta.R;
 
-public class AltimeterView extends View {
+public class CompassView extends View {
 
-    private final static String ALTITUDE_KEY = "altitude";
-    private final static String INSTANCE_KEY = "instanceState";
+    private Paint mTextPaint, mMainLinePaint, mSecondaryLinePaint, mTertiaryLinePaint;
 
-    private Paint mTextPaint, mMainLinePaint, mSecondaryLinePaint, mTertiaryLinePaint, mMarkerPaint;
-    private Path pathMarker;
+    private int mTextColor, mBackgroundColor, mLineColor;
+    private float mDegrees, mTextSize, mRangeDegrees;
 
-    private int mTextColor, mBackgroundColor, mLineColor, mMarkerColor;
-    private float mAltitude, mTextSize, mRange;
-    private boolean mShowMarker;
-
-    private float minAltitudeValue;
-    private float maxAltitudeValue;
-
-    private int[] colors;
-    private float[] hsv;
-    private GradientDrawable gradientDrawable;
-
-
-    public AltimeterView(Context context, AttributeSet attrs) {
+    public CompassView(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        TypedArray a = context.getTheme().obtainStyledAttributes(attrs, R.styleable.AltimeterView, 0, 0);
+        TypedArray a = context.getTheme().obtainStyledAttributes(attrs, R.styleable.CompassView, 0, 0);
 
-        mBackgroundColor = a.getColor(R.styleable.Application_backgroundColor, Color.BLACK);
-        mMarkerColor = a.getColor(R.styleable.Application_markerColor, Color.RED);
-        mShowMarker = a.getBoolean(R.styleable.Application_showMarker, true);
+        mBackgroundColor = a.getColor(R.styleable.Application_backgroundColor, Color.TRANSPARENT);
         mLineColor = a.getColor(R.styleable.Application_lineColor, Color.WHITE);
         mTextColor = a.getColor(R.styleable.Application_textColor, Color.WHITE);
         mTextSize = a.getDimension(R.styleable.Application_textSize, 15 * getResources().getDisplayMetrics().scaledDensity);
-        mAltitude = a.getFloat(R.styleable.AltimeterView_meters, 0);
-        mRange = a.getFloat(R.styleable.AltimeterView_rangeMeters, 500);
-        minAltitudeValue = a.getFloat(R.styleable.AltimeterView_minAltitudeValue, 0);
-        maxAltitudeValue = a.getFloat(R.styleable.AltimeterView_maxAltitudeValue, 4000);
+        mDegrees = a.getFloat(R.styleable.CompassView_degrees, 0);
+        mRangeDegrees = a.getFloat(R.styleable.CompassView_rangeDegrees, 60.0f);
+
         a.recycle();
+
+        checkValues();
         init();
+    }
+
+    private void checkValues() {
+        if ((mDegrees < 0) || (mDegrees > 359))
+            throw new IndexOutOfBoundsException(getResources()
+                    .getString(R.string.out_index_degrees));
     }
 
     private void init() {
@@ -66,20 +56,14 @@ public class AltimeterView extends View {
         mTertiaryLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mTertiaryLinePaint.setStrokeWidth(3f);
 
-        mMarkerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mMarkerPaint.setStyle(Paint.Style.FILL);
-        pathMarker = new Path();
-
-        colors = new int[(int) (mRange / 25) + 1];
-        hsv = new float[3];
-        gradientDrawable = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, colors);
     }
 
     @Override
     protected Parcelable onSaveInstanceState() {
         Bundle b = new Bundle();
-        b.putParcelable(INSTANCE_KEY, super.onSaveInstanceState());
-        b.putFloat(ALTITUDE_KEY, mAltitude);
+        b.putParcelable("instanceState", super.onSaveInstanceState());
+        b.putFloat("degrees", mDegrees);
+
         return b;
     }
 
@@ -87,9 +71,11 @@ public class AltimeterView extends View {
     protected void onRestoreInstanceState(Parcelable state) {
         if (state instanceof Bundle) {
             Bundle b = (Bundle) state;
-            mAltitude = b.getFloat(ALTITUDE_KEY, 0);
-            state = b.getParcelable(INSTANCE_KEY);
+            mDegrees = b.getFloat("degrees", 0);
+
+            state = b.getParcelable("instanceState");
         }
+
         super.onRestoreInstanceState(state);
     }
 
@@ -148,7 +134,7 @@ public class AltimeterView extends View {
         mSecondaryLinePaint.setColor(mLineColor);
         mTertiaryLinePaint.setColor(mLineColor);
 
-        mMarkerPaint.setColor(mMarkerColor);
+        canvas.drawColor(mBackgroundColor);
 
         int width = getMeasuredWidth();
         int height = getMeasuredHeight();
@@ -160,49 +146,69 @@ public class AltimeterView extends View {
 
         int unitHeight = (height - paddingTop - paddingBottom) / 12;
 
-        float pixDeg = (width - paddingLeft - paddingRight) / mRange;
+        float pixDeg = (width - paddingLeft - paddingRight) / mRangeDegrees;
 
-        int minAltitude = Math.round(mAltitude - mRange / 2);
-        int maxAltitude = Math.round(mAltitude + mRange / 2);
+        int minDegrees = Math.round(mDegrees - mRangeDegrees / 2), maxDegrees = Math.round(mDegrees
+                + mRangeDegrees / 2);
 
-        if (mShowMarker) {
-            pathMarker.moveTo((float) width / 2, 3 * unitHeight + paddingTop);
-            pathMarker.lineTo(((float) width / 2) + 20, paddingTop);
-            pathMarker.lineTo(((float) width / 2) - 20, paddingTop);
-            pathMarker.close();
-            canvas.drawPath(pathMarker, mMarkerPaint);
-        }
-
-        for (int i = minAltitude, j = 0; i <= maxAltitude; i++) {
-            if (i % 100 == 0) {
-                canvas.drawText(String.valueOf(i), paddingLeft + pixDeg * (i - minAltitude), ((float) height / 2) + (mTextSize / 3), mTextPaint);
-            }
-            if(i % 25 == 0){
-                canvas.drawLine(paddingLeft + pixDeg * (i - minAltitude), height - paddingBottom,
-                        paddingLeft + pixDeg * (i - minAltitude), 10 * unitHeight + paddingTop,
+        for (int i = -180; i < 540; i += 15) {
+            if ((i >= minDegrees) && (i <= maxDegrees)) {
+                canvas.drawLine(paddingLeft + pixDeg * (i - minDegrees), height - paddingBottom,
+                        paddingLeft + pixDeg * (i - minDegrees), 10 * unitHeight + paddingTop,
                         mTertiaryLinePaint);
 
-                hsv[0] = ((float) i/ (maxAltitudeValue - minAltitudeValue)) * 360;
-                hsv[1] = 1.0f;
-                hsv[2] = 0.8f;
-                colors[j] = Color.HSVToColor(255, hsv);
-                j++;
+                if (i % 45 == 0) {
+                    canvas.drawLine(paddingLeft + pixDeg * (i - minDegrees),
+                            height - paddingBottom, paddingLeft + pixDeg * (i - minDegrees),
+                            8 * unitHeight + paddingTop, mSecondaryLinePaint);
+                }
+
+                if (i % 90 == 0) {
+                    canvas.drawLine(paddingLeft + pixDeg * (i - minDegrees),
+                            height - paddingBottom, paddingLeft + pixDeg * (i - minDegrees),
+                            6 * unitHeight + paddingTop, mMainLinePaint);
+
+                    String coord = "";
+                    switch (i) {
+                        case -90:
+                        case 270:
+                            coord = getResources().getString(R.string.compass_west);
+                            break;
+
+                        case 0:
+                        case 360:
+                            coord = getResources().getString(R.string.compass_north);
+                            break;
+
+                        case 90:
+                        case 450:
+                            coord = getResources().getString(R.string.compass_east);
+                            break;
+
+                        case -180:
+                        case 180:
+                            coord = getResources().getString(R.string.compass_south);
+                            break;
+                    }
+
+                    canvas.drawText(coord, paddingLeft + pixDeg * (i - minDegrees), 5 * unitHeight
+                            + paddingTop, mTextPaint);
+                }
             }
         }
-        gradientDrawable.setColors(colors);
-        setBackground(gradientDrawable);
+
     }
 
-    public void setAltitude(float meters) {
-        if(mAltitude != meters){
-            mAltitude = meters;
+    public void setDegrees(float degrees) {
+        if ((mDegrees < 0) || (mDegrees >= 360))
+            throw new IndexOutOfBoundsException(getResources()
+                    .getString(R.string.out_index_degrees) + mDegrees);
+
+        if((mDegrees - degrees > 5) || (mDegrees - degrees < - 5)){
+            mDegrees = degrees;
             invalidate();
             requestLayout();
         }
-    }
-
-    public float getmAltitude() {
-        return mAltitude;
     }
 
     @Override
@@ -218,20 +224,8 @@ public class AltimeterView extends View {
         requestLayout();
     }
 
-    public void setMarkerColor(int color) {
-        mMarkerColor = color;
-        invalidate();
-        requestLayout();
-    }
-
     public void setTextColor(int color) {
         mTextColor = color;
-        invalidate();
-        requestLayout();
-    }
-
-    public void setShowMarker(boolean show) {
-        mShowMarker = show;
         invalidate();
         requestLayout();
     }
@@ -242,17 +236,15 @@ public class AltimeterView extends View {
         requestLayout();
     }
 
-    public void setRange(float range) {
-        mRange = range;
+    public void setRangeDegrees(float range) {
+        if (mRangeDegrees > 360)
+            throw new IndexOutOfBoundsException(getResources().getString(
+                    R.string.out_index_range_degrees)
+                    + mRangeDegrees);
+
+        mRangeDegrees = range;
         invalidate();
         requestLayout();
     }
 
-    public void setMinAltitudeValue(float minAltitudeValue) {
-        this.minAltitudeValue = minAltitudeValue;
-    }
-
-    public void setMaxAltitudeValue(float maxAltitudeValue) {
-        this.maxAltitudeValue = maxAltitudeValue;
-    }
 }

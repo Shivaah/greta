@@ -43,4 +43,35 @@
     <string name="description_info">Info</string>
     <string name="request_permission">This sample needs camera permission.</string>
     <string name="camera_error">This device doesn\'t support Camera2 API.</string>
+    <string name="latitude_firebase_model_key" translatable="false">latitude</string>
+    <string name="longitude_firebase_model_key" translatable="false">longitude</string>
+    <string name="username_firebase_model_key" translatable="false">username</string>
+
+    <!-- CompassView -->
+    <string name="compass_north">N</string>
+    <string name="compass_east">E</string>
+    <string name="compass_south">S</string>
+    <string name="compass_west">W</string>
+    <string name="out_index_degrees" translatable="false">Degrees must be between 0 and 359, both inclusive. Actual value: </string>
+    <string name="out_index_range_degrees" translatable="false">Range degrees must be between 90 and 360, both inclusive. Actual value: </string>
+    <string name="altitude_firebase_model_key">altitude</string>
+    <string name="new_name">New name</string>
+    <string name="ok">OK</string>
+    <string name="track_name">Track name</string>
+    <string name="track_name_hint">New track name</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="error">Error</string>
+    <string name="invalid_username_error_message">Username is invalid</string>
+    <string name="measure_default">kilometers</string>
+    <string name="confirm_delete">Confirm delete</string>
+    <string name="start">Start</string>
+    <string name="end">End</string>
+    <string name="no_recorded_track_found">No recorded track found</string>
+    <string name="enter_username">Enter username</string>
+    <string name="firebase_child_shared_waypoints">shared_waypoints</string>
+    <string name="name_firebase_model_key">name</string>
+    <string name="set_marker_name">Give the marker a name</string>
+    <string name="invalid_marker_name">Invalid marker name</string>
+
 </resources>
