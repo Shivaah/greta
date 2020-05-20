@@ -32,6 +32,7 @@ import androidx.lifecycle.Observer;
 import androidx.preference.PreferenceManager;
 
 import com.cnam.greta.R;
+import com.cnam.greta.data.FirebaseConstants;
 import com.cnam.greta.data.entities.SharedWayPoint;
 import com.cnam.greta.data.entities.Track;
 import com.cnam.greta.data.entities.TrackDetails;
@@ -133,10 +134,10 @@ public class MapFragment extends Fragment {
                 if(user != null){
                     markers.put(dataSnapshot.getKey(), mGoogleMap.addMarker(new MarkerOptions()
                             .position(new LatLng(
-                                    (double) user.get(getString(R.string.latitude_firebase_model_key)),
-                                    (double) user.get(getString(R.string.longitude_firebase_model_key))
+                                    (double) user.get(FirebaseConstants.LATITUDE),
+                                    (double) user.get(FirebaseConstants.LONGITUDE)
                             ))
-                            .title((String) user.get(getString(R.string.username_firebase_model_key)))
+                            .title((String) user.get(FirebaseConstants.USERNAME))
                     ));
                 }
             }
@@ -147,10 +148,10 @@ public class MapFragment extends Fragment {
             Marker marker = markers.get(dataSnapshot.getKey());
             HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
             if(user != null && marker != null){
-                marker.setTitle((String) user.get(getString(R.string.username_firebase_model_key)));
+                marker.setTitle((String) user.get(FirebaseConstants.USERNAME));
                 marker.setPosition(new LatLng(
-                        (double) user.get(getString(R.string.latitude_firebase_model_key)),
-                        (double) user.get(getString(R.string.longitude_firebase_model_key))
+                        (double) user.get(FirebaseConstants.LATITUDE),
+                        (double) user.get(FirebaseConstants.LONGITUDE)
                 ));
                 markers.put(dataSnapshot.getKey(), marker);
             }
@@ -176,18 +177,17 @@ public class MapFragment extends Fragment {
      * Callback for Firebase data changes on "users" childs
      */
     private final ChildEventListener sharedWaypointsListener = new ChildEventListener() {
-        @SuppressLint("HardwareIds")
         @Override
         public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-            if(dataSnapshot.getKey() != null && !dataSnapshot.getKey().equals(Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ANDROID_ID))){
+            if(dataSnapshot.getKey() != null){
                 HashMap<String, Object> sharedWaypoint = (HashMap<String, Object>) dataSnapshot.getValue();
                 if(sharedWaypoint != null){
                     sharedWayPoints.put(Integer.valueOf(dataSnapshot.getKey()), mGoogleMap.addMarker(new MarkerOptions()
                             .position(new LatLng(
-                                    (double) sharedWaypoint.get(getString(R.string.latitude_firebase_model_key)),
-                                    (double) sharedWaypoint.get(getString(R.string.longitude_firebase_model_key))
+                                    (double) sharedWaypoint.get(FirebaseConstants.LATITUDE),
+                                    (double) sharedWaypoint.get(FirebaseConstants.LONGITUDE)
                             ))
-                            .title((String) sharedWaypoint.get(getString(R.string.name_firebase_model_key)))
+                            .title((String) sharedWaypoint.get(FirebaseConstants.NAME))
                             .icon(BitmapDescriptorFactory
                                     .defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
                     ));
@@ -200,10 +200,10 @@ public class MapFragment extends Fragment {
             Marker marker = sharedWayPoints.get(dataSnapshot.getKey());
             HashMap<String, Object> sharedWayPoint = (HashMap<String, Object>) dataSnapshot.getValue();
             if(sharedWayPoint != null && marker != null){
-                marker.setTitle((String) sharedWayPoint.get(getString(R.string.username_firebase_model_key)));
+                marker.setTitle((String) sharedWayPoint.get(FirebaseConstants.USERNAME));
                 marker.setPosition(new LatLng(
-                        (double) sharedWayPoint.get(getString(R.string.latitude_firebase_model_key)),
-                        (double) sharedWayPoint.get(getString(R.string.longitude_firebase_model_key))
+                        (double) sharedWayPoint.get(FirebaseConstants.LATITUDE),
+                        (double) sharedWayPoint.get(FirebaseConstants.LONGITUDE)
                 ));
                 sharedWayPoints.put(Integer.valueOf(dataSnapshot.getKey()), marker);
             }
@@ -366,12 +366,12 @@ public class MapFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         usersDatabaseReference = FirebaseDatabase.getInstance()
-                .getReference(getString(R.string.firebase_child_data))
-                .child(getString(R.string.firebase_child_users));
+                .getReference(FirebaseConstants.DATA)
+                .child(FirebaseConstants.USERS);
 
         wayPointDatabaseReference = FirebaseDatabase.getInstance()
-                .getReference(getString(R.string.firebase_child_data))
-                .child(getString(R.string.firebase_child_shared_waypoints));
+                .getReference(FirebaseConstants.DATA)
+                .child(FirebaseConstants.SHARED_WAYPOINTS);
     }
 
     @Override
@@ -408,6 +408,11 @@ public class MapFragment extends Fragment {
             }
         }
         return rootView;
+    }
+
+    @Override
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
     }
 
     @Override

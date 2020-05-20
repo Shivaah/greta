@@ -53,6 +53,7 @@ import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.Fragment;
 
 import com.cnam.greta.R;
+import com.cnam.greta.data.FirebaseConstants;
 import com.cnam.greta.data.entities.UserPosition;
 import com.cnam.greta.views.AutoFitTextureView;
 import com.cnam.greta.views.CompassView;
@@ -405,10 +406,10 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
                 HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
                 if(user != null){
                     UserPosition userPosition = new UserPosition();
-                    userPosition.setUsername((String) user.get(getString(R.string.username_firebase_model_key)));
-                    userPosition.setAltitude((double) user.get(getString(R.string.latitude_firebase_model_key)));
-                    userPosition.setLatitude((double) user.get(getString(R.string.latitude_firebase_model_key)));
-                    userPosition.setLongitude((double) user.get(getString(R.string.longitude_firebase_model_key)));
+                    userPosition.setUsername((String) user.get(FirebaseConstants.USERNAME));
+                    userPosition.setAltitude((double) user.get(FirebaseConstants.ALTITUDE));
+                    userPosition.setLatitude((double) user.get(FirebaseConstants.LATITUDE));
+                    userPosition.setLongitude((double) user.get(FirebaseConstants.LONGITUDE));
                     user.put(dataSnapshot.getKey(), userPosition);
                 }
             }
@@ -419,10 +420,10 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
             UserPosition userPosition = users.get(dataSnapshot.getKey());
             HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
             if(user != null && userPosition != null){
-                userPosition.setUsername((String) user.get(getString(R.string.username_firebase_model_key)));
-                userPosition.setAltitude((double) user.get(getString(R.string.latitude_firebase_model_key)));
-                userPosition.setLatitude((double) user.get(getString(R.string.latitude_firebase_model_key)));
-                userPosition.setLongitude((double) user.get(getString(R.string.longitude_firebase_model_key)));
+                userPosition.setUsername((String) user.get(FirebaseConstants.USERNAME));
+                userPosition.setAltitude((double) user.get(FirebaseConstants.ALTITUDE));
+                userPosition.setLatitude((double) user.get(FirebaseConstants.LATITUDE));
+                userPosition.setLongitude((double) user.get(FirebaseConstants.LONGITUDE));
                 user.put(dataSnapshot.getKey(), userPosition);
             }
         }
@@ -516,8 +517,8 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         usersDatabaseReference = FirebaseDatabase.getInstance()
-                .getReference(getString(R.string.firebase_child_data))
-                .child(getString(R.string.firebase_child_users));
+                .getReference(FirebaseConstants.DATA)
+                .child(FirebaseConstants.USERS);
     }
 
     @Override
