@@ -1,4 +1,4 @@
-package com.cnam.greta.database;
+package com.cnam.greta.data;
 
 import android.content.Context;
 
@@ -6,10 +6,10 @@ import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 
-import com.cnam.greta.database.dao.TrackDao;
-import com.cnam.greta.database.dao.WayPointDao;
-import com.cnam.greta.database.entities.Track;
-import com.cnam.greta.database.entities.WayPoint;
+import com.cnam.greta.data.dao.TrackDao;
+import com.cnam.greta.data.dao.WayPointDao;
+import com.cnam.greta.data.entities.Track;
+import com.cnam.greta.data.entities.WayPoint;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

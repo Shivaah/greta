@@ -1,4 +1,4 @@
-package com.cnam.greta.models;
+package com.cnam.greta.data.entities;
 
 public class UserPosition {
 
@@ -6,6 +6,10 @@ public class UserPosition {
     private double latitude;
     private double longitude;
     private double altitude;
+
+    public UserPosition(){
+
+    }
 
     public UserPosition(String username, double latitude, double longitude, double altitude) {
         this.username = username;
@@ -18,15 +22,31 @@ public class UserPosition {
         return username;
     }
 
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     public double getLatitude() {
         return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
     }
 
     public double getLongitude() {
         return longitude;
     }
 
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
     public double getAltitude() {
         return altitude;
+    }
+
+    public void setAltitude(double altitude) {
+        this.altitude = altitude;
     }
 }

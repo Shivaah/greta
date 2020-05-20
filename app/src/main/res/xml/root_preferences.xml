@@ -7,14 +7,13 @@
         app:iconSpaceReserved="false">
 
         <EditTextPreference
-            app:defaultValue="@string/unknown_user"
             app:key="@string/username_key"
             app:title="@string/username_title"
             app:useSimpleSummaryProvider="true"
             app:iconSpaceReserved="false"/>
 
         <ListPreference
-            app:defaultValue="km"
+            app:defaultValue="@string/measure_default"
             app:entries="@array/measure"
             app:entryValues="@array/measure_values"
             app:key="@string/measure_key"

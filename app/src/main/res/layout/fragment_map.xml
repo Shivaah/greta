@@ -36,15 +36,6 @@
         android:clickable="true"
         android:padding="15dp">
 
-        <ImageView
-            android:id="@+id/track_buttton_image"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_my_location_black_24dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
         <TextView
             android:id="@+id/track_buttton_text"
             android:layout_width="wrap_content"
@@ -52,11 +43,38 @@
             android:text="@string/start_tracking"
             android:textSize="16sp"
             android:textStyle="bold"
-            app:layout_constraintBottom_toBottomOf="@+id/track_buttton_image"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/track_buttton_image"
-            app:layout_constraintTop_toTopOf="@+id/track_buttton_image"
+            app:layout_constraintStart_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             android:layout_marginStart="3dp"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:visibility="gone"
+        android:id="@+id/delete_marker_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/button_danger"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="7dp"
+        android:layout_marginBottom="10dp"
+        app:layout_constraintBottom_toTopOf="@+id/track_buttton"
+        app:layout_constraintEnd_toEndOf="@+id/track_buttton"
+        app:layout_constraintStart_toStartOf="@+id/track_buttton">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="3dp"
+            android:text="@string/delete_marker"
+            android:textSize="14sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -69,8 +87,8 @@
         android:focusable="true"
         android:padding="15dp"
         app:layout_constraintBottom_toBottomOf="@+id/track_buttton"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/track_buttton"
+        app:layout_constraintEnd_toStartOf="@+id/track_buttton"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/track_buttton">
 
         <ImageView
@@ -84,5 +102,13 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <com.github.pengrad.mapscaleview.MapScaleView
+        android:id="@+id/scaleView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="4dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/altimeter" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

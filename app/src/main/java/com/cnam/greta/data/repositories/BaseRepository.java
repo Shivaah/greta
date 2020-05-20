@@ -1,4 +1,4 @@
-package com.cnam.greta.database.repositories;
+package com.cnam.greta.data.repositories;
 
 import androidx.lifecycle.LiveData;
 

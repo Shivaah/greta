@@ -15,8 +15,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.cnam.greta.R;
 import com.cnam.greta.adapters.TrackAdapter;
-import com.cnam.greta.database.entities.TrackDetails;
-import com.cnam.greta.database.repositories.TrackRepository;
+import com.cnam.greta.data.entities.TrackDetails;
+import com.cnam.greta.data.repositories.TrackRepository;
 
 import java.util.List;
 
@@ -26,14 +26,20 @@ public class HistoryFragment extends Fragment {
     private TrackRepository trackRepository;
     private TrackAdapter trackAdapter;
     private RecyclerView trackRecyclerView;
+    private View emptyState;
 
     private LiveData<List<TrackDetails>> trackDetails;
 
     private Observer<List<TrackDetails>> trackDetailsObserver = new Observer<List<TrackDetails>>() {
         @Override
         public void onChanged(List<TrackDetails> trackDetails) {
-            trackAdapter = new TrackAdapter(trackDetails);
-            trackRecyclerView.setAdapter(trackAdapter);
+            if(trackDetails != null && trackDetails.size() != 0){
+                emptyState.setVisibility(View.GONE);
+                trackAdapter = new TrackAdapter(trackDetails);
+                trackRecyclerView.setAdapter(trackAdapter);
+            } else {
+                emptyState.setVisibility(View.VISIBLE);
+            }
         }
     };
 
@@ -48,6 +54,7 @@ public class HistoryFragment extends Fragment {
         if(rootView == null){
             rootView = inflater.inflate(R.layout.fragment_history, container, false);
             trackRecyclerView = rootView.findViewById(R.id.history_recyclerview);
+            emptyState = rootView.findViewById(R.id.fragment_history_empty_state);
             trackRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         }
         return rootView;
@@ -64,4 +71,5 @@ public class HistoryFragment extends Fragment {
         super.onPause();
         trackDetails.removeObserver(trackDetailsObserver);
     }
+
 }

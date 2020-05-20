@@ -1,12 +1,12 @@
-package com.cnam.greta.database.dao;
+package com.cnam.greta.data.dao;
 
 import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Query;
 import androidx.room.Transaction;
 
-import com.cnam.greta.database.entities.Track;
-import com.cnam.greta.database.entities.TrackDetails;
+import com.cnam.greta.data.entities.Track;
+import com.cnam.greta.data.entities.TrackDetails;
 
 import java.util.List;
 
