@@ -36,4 +36,11 @@
     <string name="distance_holder">Distance : %d</string>
     <string name="duration_holder">Duration : %d</string>
     <string name="waypoints_hodler">Waypoints : %d</string>
+    <string name="start_tracking">Start tracking</string>
+    <string name="stop_tracking">Stop tracking</string>
+
+    <string name="picture">Picture</string>
+    <string name="description_info">Info</string>
+    <string name="request_permission">This sample needs camera permission.</string>
+    <string name="camera_error">This device doesn\'t support Camera2 API.</string>
 </resources>

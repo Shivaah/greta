@@ -1,22 +1,25 @@
-package com.cnam.greta.ui.map;
+package com.cnam.greta.ui.fragment;
 
 import android.annotation.SuppressLint;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.location.Location;
-import android.location.LocationListener;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
@@ -27,6 +30,7 @@ import com.cnam.greta.database.entities.TrackDetails;
 import com.cnam.greta.database.entities.WayPoint;
 import com.cnam.greta.database.repositories.TrackRepository;
 import com.cnam.greta.services.LocationService;
+import com.cnam.greta.ui.CameraActivity;
 import com.cnam.greta.views.AltimeterView;
 import com.cnam.greta.views.richmaps.RichLayer;
 import com.cnam.greta.views.richmaps.RichPoint;
@@ -62,6 +66,8 @@ public class MapFragment extends Fragment {
     private View rootView;
     private MapView mMapView;
     private AltimeterView mAltimeterView;
+    private View trackButton;
+    private View cameraButton;
 
     //Service
     private LocationService locationService;
@@ -88,11 +94,13 @@ public class MapFragment extends Fragment {
                 }
                 WayPoint lastWayPoint = trackDetails.getWayPoints().get(trackDetails.getWayPoints().size() - 1);
                 richLayer.addShape(polylineOpts.build());
-                CameraUpdate center= CameraUpdateFactory.newLatLng(new LatLng(lastWayPoint.getLatitude(), lastWayPoint.getLongitude()));
-                CameraUpdate zoom = CameraUpdateFactory.zoomTo(16);
+                if(mGoogleMap.getUiSettings().isMyLocationButtonEnabled()){
+                    CameraUpdate center= CameraUpdateFactory.newLatLng(new LatLng(lastWayPoint.getLatitude(), lastWayPoint.getLongitude()));
+                    CameraUpdate zoom = CameraUpdateFactory.zoomTo(16);
+                    mGoogleMap.moveCamera(center);
+                    mGoogleMap.animateCamera(zoom);
+                }
                 mAltimeterView.setAltitude((float) lastWayPoint.getAltitude());
-                mGoogleMap.moveCamera(center);
-                mGoogleMap.animateCamera(zoom);
             }
         }
     };
@@ -101,24 +109,27 @@ public class MapFragment extends Fragment {
      * Callback for Firebase data changes on "users" child
      */
     private final ValueEventListener usersListener = new ValueEventListener() {
+        @SuppressLint("HardwareIds")
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
             if(dataSnapshot.getValue() != null){
                 HashMap<String, HashMap<String, Object>> users = (HashMap<String, HashMap<String, Object>>) dataSnapshot.getValue();
                 for (Map.Entry<String, HashMap<String, Object>> user : users.entrySet()){
-                    LatLng position = new LatLng((double) user.getValue().get("latitude"), (double) user.getValue().get("longitude"));
-                    String username = (String) user.getValue().get("username");
-                    Marker marker = markers.get(user.getKey());
-                    if(marker == null){
-                        marker = mGoogleMap.addMarker(new MarkerOptions()
-                                .position(position)
-                                .title(username)
-                        );
-                    } else {
-                        marker.setPosition(position);
-                        marker.setTitle(username);
+                    if(!user.getKey().equals(Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ANDROID_ID))){
+                        LatLng position = new LatLng((double) user.getValue().get("latitude"), (double) user.getValue().get("longitude"));
+                        String username = (String) user.getValue().get("username");
+                        Marker marker = markers.get(user.getKey());
+                        if(marker == null){
+                            marker = mGoogleMap.addMarker(new MarkerOptions()
+                                    .position(position)
+                                    .title(username)
+                            );
+                        } else {
+                            marker.setPosition(position);
+                            marker.setTitle(username);
+                        }
+                        markers.put(user.getKey(), marker);
                     }
-                    markers.put(user.getKey(), marker);
                 }
             }
         }
@@ -138,6 +149,10 @@ public class MapFragment extends Fragment {
             mGoogleMap = map;
             mGoogleMap.setOnCameraIdleListener(mOnCameraChangeListener);
             mGoogleMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
+            if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                mGoogleMap.setMyLocationEnabled(true);
+                mGoogleMap.getUiSettings().setMyLocationButtonEnabled(true);
+            }
             richLayer = new RichLayer.Builder(mMapView, mGoogleMap).build();
         }
     };
@@ -159,6 +174,43 @@ public class MapFragment extends Fragment {
         }
     };
 
+    private View.OnClickListener trackButtonClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if(locationService != null){
+                if(locationService.isTracking()){
+                    locationService.stopTracking();
+                } else {
+                    locationService.startTracking();
+                }
+                updateTrackingButton(locationService.isTracking());
+            }
+        }
+    };
+
+    private View.OnClickListener cameraButtonClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            Intent intent = new Intent(getContext(), CameraActivity.class);
+            startActivity(intent);
+        }
+    };
+
+    private ServiceConnection serviceConnection = new ServiceConnection() {
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            locationService = ((LocationService.LocationServiceBinder) service).getService();
+            locationService.setTrackListener(trackListener);
+            updateTrackingButton(locationService.isTracking());
+        }
+
+        public void onServiceDisconnected(ComponentName className) {
+            currentTrackDetails.removeObserver(trackDetailsObserver);
+            locationService.removeTrackListener();
+            updateTrackingButton(locationService.isTracking());
+            locationService = null;
+        }
+    };
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -177,6 +229,15 @@ public class MapFragment extends Fragment {
 
             mMapView.onCreate(savedInstanceState);
             mMapView.getMapAsync(mapReadyCallback);
+
+            trackButton = rootView.findViewById(R.id.track_buttton);
+            trackButton.setOnClickListener(trackButtonClickListener);
+            cameraButton = rootView.findViewById(R.id.camera_button);
+            cameraButton.setOnClickListener(cameraButtonClickListener);
+
+            if(locationService != null){
+                updateTrackingButton(locationService.isTracking());
+            }
         }
         return rootView;
     }
@@ -210,16 +271,13 @@ public class MapFragment extends Fragment {
         mMapView.onLowMemory();
     }
 
-    private ServiceConnection serviceConnection = new ServiceConnection() {
-        public void onServiceConnected(ComponentName className, IBinder service) {
-            locationService = ((LocationService.LocationServiceBinder) service).getService();
-            locationService.setTrackListener(trackListener);
+    private void updateTrackingButton(boolean isTracking){
+        if(isTracking){
+            ((ImageView) rootView.findViewById(R.id.track_buttton_image)).setImageDrawable(requireContext().getDrawable(R.drawable.ic_stop_black_24dp));
+            ((TextView) rootView.findViewById(R.id.track_buttton_text)).setText(requireContext().getString(R.string.stop_tracking));
+        } else {
+            ((ImageView) rootView.findViewById(R.id.track_buttton_image)).setImageDrawable(requireContext().getDrawable(R.drawable.ic_my_location_black_24dp));
+            ((TextView) rootView.findViewById(R.id.track_buttton_text)).setText(requireContext().getString(R.string.start_tracking));
         }
-
-        public void onServiceDisconnected(ComponentName className) {
-            currentTrackDetails.removeObserver(trackDetailsObserver);
-            locationService.removeTrackListener();
-            locationService = null;
-        }
-    };
+    }
 }

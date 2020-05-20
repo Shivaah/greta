@@ -1,4 +1,4 @@
-package com.cnam.greta.ui.settings;
+package com.cnam.greta.ui.fragment;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;

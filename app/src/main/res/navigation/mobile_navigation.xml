@@ -7,19 +7,19 @@
 
     <fragment
         android:id="@+id/navigation_settings"
-        android:name="com.cnam.greta.ui.settings.SettingsFragment"
+        android:name="com.cnam.greta.ui.fragment.SettingsFragment"
         android:label="@string/title_settings"
         tools:layout="@layout/fragment_settings" />
 
     <fragment
         android:id="@+id/navigation_map"
-        android:name="com.cnam.greta.ui.map.MapFragment"
+        android:name="com.cnam.greta.ui.fragment.MapFragment"
         android:label="@string/title_map"
         tools:layout="@layout/fragment_map" />
 
     <fragment
         android:id="@+id/navigation_history"
-        android:name="com.cnam.greta.ui.history.HistoryFragment"
+        android:name="com.cnam.greta.ui.fragment.HistoryFragment"
         android:label="@string/tittle_history"
         tools:layout="@layout/fragment_history" />
 </navigation>

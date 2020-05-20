@@ -32,6 +32,10 @@ import com.cnam.greta.models.UserPosition;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 public class LocationService extends Service {
 
     private final LocationServiceBinder binder = new LocationServiceBinder();
@@ -40,6 +44,7 @@ public class LocationService extends Service {
     private WayPointRepository wayPointRepository;
     private TrackRepository trackRepository;
     private Track mTrack;
+    private boolean isTracking = false;
 
     private DatabaseReference usersDatabaseReference;
 
@@ -123,7 +128,6 @@ public class LocationService extends Service {
     @Override
     public void onCreate() {
         wayPointRepository = new WayPointRepository(getApplicationContext());
-        initializeTrack();
         usersDatabaseReference = FirebaseDatabase.getInstance()
                 .getReference(getString(R.string.firebase_child_data))
                 .child(getString(R.string.firebase_child_users));
@@ -139,6 +143,7 @@ public class LocationService extends Service {
         if (mLocationManager != null) {
             try {
                 mLocationManager.removeUpdates(mLocationListener);
+                usersDatabaseReference = null;
                 trackRepository = null;
                 wayPointRepository = null;
             } catch (Exception ex) {
@@ -153,7 +158,7 @@ public class LocationService extends Service {
             trackRepository = new TrackRepository(getApplicationContext());
         }
         mTrack = new Track();
-        mTrack.setTrackName("Current track");
+        mTrack.setTrackName("Track : " + new SimpleDateFormat("dd MMM yyyy HH:mm:ss", Locale.getDefault()).format(new Date(System.currentTimeMillis())));
         final LiveData<Long> trackId = trackRepository.insert(mTrack);
         trackId.observeForever(new Observer<Long>() {
             @Override
@@ -211,18 +216,23 @@ public class LocationService extends Service {
         try {
             initializeLocationManager();
             setLocationManagerListener();
+            initializeTrack();
+            isTracking = true;
         } catch (Exception e){
           e.printStackTrace();
         }
     }
 
+    @SuppressLint("HardwareIds")
     public void stopTracking() {
+        isTracking = false;
+        usersDatabaseReference.child(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID)).removeValue();
         mLocationManager = null;
         this.onDestroy();
     }
 
-    public Track getCurrentTrack() {
-        return mTrack;
+    public boolean isTracking() {
+        return isTracking;
     }
 
     public void removeTrackListener() {
@@ -231,7 +241,7 @@ public class LocationService extends Service {
 
     public void setTrackListener(TrackListener trackListener) {
         this.trackListener = trackListener;
-        if(mTrack.getTrackId() != 0){
+        if(mTrack != null && mTrack.getTrackId() != 0){
             trackListener.onTrackReady(mTrack);
         }
     }

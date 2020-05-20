@@ -25,7 +25,7 @@ import com.cnam.greta.R;
 import com.cnam.greta.services.LocationService;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity{
 
     public static final int PERMISSIONS_REQUEST_LOCATION_CODE = 1;
     public static final int PERMISSIONS_REQUEST_LOCATION_SETTINGS_CODE = 2;
@@ -115,7 +115,6 @@ public class MainActivity extends AppCompatActivity {
     private ServiceConnection serviceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder service) {
             locationService = ((LocationService.LocationServiceBinder) service).getService();
-            locationService.startTracking();
         }
 
         public void onServiceDisconnected(ComponentName className) {

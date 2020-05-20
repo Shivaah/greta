@@ -1,12 +1,14 @@
 package com.cnam.greta.adapters;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.cnam.greta.R;
@@ -33,9 +35,11 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHol
 
     @Override
     public void onBindViewHolder(@NonNull TrackViewHolder holder, int position) {
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(holder.itemView.getContext());
+        String unit = sharedPreferences.getString(holder.itemView.getContext().getString(R.string.measure_key), "kilometers");
         TrackDetails track = mTracks.get(position);
         holder.name.setText(track.getTrack().getTrackName());
-        holder.distance.setText(String.format(holder.itemView.getContext().getString(R.string.distance_holder), computeDistance(track.getWayPoints())));
+        holder.distance.setText(String.format(holder.itemView.getContext().getString(R.string.distance_holder), computeDistance(track.getWayPoints(), unit)));
         holder.duration.setText(String.format(holder.itemView.getContext().getString(R.string.duration_holder), computeTime(track.getWayPoints())));
         holder.waypoints.setText(String.format(holder.itemView.getContext().getString(R.string.waypoints_hodler), track.getWayPoints() != null ? track.getWayPoints().size() : 0));
     }
@@ -48,7 +52,7 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHol
         return mTracks.size();
     }
 
-    private long computeDistance(List<WayPoint> wayPoints){
+    private long computeDistance(List<WayPoint> wayPoints, String unit){
         long total = 0;
         for (int i = 0; i < wayPoints.size() - 1; i++){
             WayPoint point1 = wayPoints.get(i);
@@ -59,7 +63,12 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHol
                 dist = Math.acos(dist);
                 dist = Math.toDegrees(dist);
                 dist = dist * 60 * 1.1515;
-                total += dist * 1.609344;
+                if (unit.equals("kilometers")) {
+                    dist = dist * 1.609344;
+                } else if (unit.equals("miles")) {
+                    dist = dist * 0.8684;
+                }
+                total += dist;
             }
         }
         return total;

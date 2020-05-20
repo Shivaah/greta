@@ -1,4 +1,4 @@
-package com.cnam.greta.ui.history;
+package com.cnam.greta.ui.fragment;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -55,7 +55,7 @@ public class HistoryFragment extends Fragment {
 
     @Override
     public void onResume() {
-        super.onResume();
+        super.onResume();;
         trackDetails.observe(getViewLifecycleOwner(), trackDetailsObserver);
     }
 
