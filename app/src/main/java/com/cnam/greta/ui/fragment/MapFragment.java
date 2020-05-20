@@ -81,6 +81,7 @@ public class MapFragment extends Fragment {
     private MapScaleView scaleView;
     private View trackButton;
     private View cameraButton;
+    private View deleteMarkerButton;
 
     //Service
     private LocationService locationService;
@@ -88,8 +89,8 @@ public class MapFragment extends Fragment {
     //Data
     private HashMap<String, Marker> markers = new HashMap<>();
     private HashMap<Integer, Marker> sharedWayPoints = new HashMap<>();
-
     private LiveData<TrackDetails> currentTrackDetails;
+    private Marker selectedMarker;
 
     private final Observer<TrackDetails> trackDetailsObserver = new Observer<TrackDetails>() {
         @Override
@@ -210,7 +211,11 @@ public class MapFragment extends Fragment {
 
         @Override
         public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
-            sharedWayPoints.remove(dataSnapshot.getKey());
+            Marker marker = sharedWayPoints.get(Integer.valueOf(dataSnapshot.getKey()));
+            if(marker != null){
+                marker.remove();
+                sharedWayPoints.remove(Integer.valueOf(dataSnapshot.getKey()));
+            }
         }
 
         @Override
@@ -234,6 +239,8 @@ public class MapFragment extends Fragment {
             mGoogleMap.setOnMapLongClickListener(mapLongClickListener);
             mGoogleMap.setOnCameraIdleListener(mOnCameraChangeListener);
             mGoogleMap.setOnCameraMoveListener(mOnCameraMoveListener);
+            mGoogleMap.setOnMarkerClickListener(markerClickListener);
+            mGoogleMap.setOnInfoWindowCloseListener(onInfoWindowCloseListener);
             mGoogleMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
             if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 mGoogleMap.setMyLocationEnabled(true);
@@ -270,7 +277,7 @@ public class MapFragment extends Fragment {
         }
     };
 
-    private View.OnClickListener trackButtonClickListener = new View.OnClickListener() {
+    private final View.OnClickListener trackButtonClickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
             if(locationService != null){
@@ -290,7 +297,7 @@ public class MapFragment extends Fragment {
         }
     };
 
-    private View.OnClickListener cameraButtonClickListener = new View.OnClickListener() {
+    private final View.OnClickListener cameraButtonClickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
             Intent intent = new Intent(getContext(), CameraActivity.class);
@@ -298,10 +305,45 @@ public class MapFragment extends Fragment {
         }
     };
 
+    private final View.OnClickListener deleteMarkerButtonClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if(selectedMarker != null){
+                int index = getMarkerIndex(selectedMarker);
+                if(index != -1){
+                    confirmDeleteMarker(getContext(), getMarkerIndex(selectedMarker));
+                }
+            }
+        }
+    };
+
     private final GoogleMap.OnMapLongClickListener mapLongClickListener = new GoogleMap.OnMapLongClickListener() {
         @Override
         public void onMapLongClick(LatLng latLng) {
             markerDialog(getContext(), latLng);
+        }
+    };
+
+    private final GoogleMap.OnMarkerClickListener markerClickListener = new GoogleMap.OnMarkerClickListener() {
+        @Override
+        public boolean onMarkerClick(Marker marker) {
+            selectedMarker = marker;
+            int index = getMarkerIndex(marker);
+            if(index != -1){
+                deleteMarkerButton.setVisibility(View.VISIBLE);
+            }
+            return false;
+        }
+    };
+
+    private final GoogleMap.OnInfoWindowCloseListener onInfoWindowCloseListener = new GoogleMap.OnInfoWindowCloseListener() {
+        @Override
+        public void onInfoWindowClose(Marker marker) {
+            int index = getMarkerIndex(marker);
+            if(index != -1){
+                deleteMarkerButton.setVisibility(View.GONE);
+            }
+            selectedMarker = null;
         }
     };
 
@@ -348,6 +390,9 @@ public class MapFragment extends Fragment {
 
             cameraButton = rootView.findViewById(R.id.camera_button);
             cameraButton.setOnClickListener(cameraButtonClickListener);
+
+            deleteMarkerButton = rootView.findViewById(R.id.delete_marker_button);
+            deleteMarkerButton.setOnClickListener(deleteMarkerButtonClickListener);
 
             scaleView = rootView.findViewById(R.id.scaleView);
             SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext());
@@ -504,4 +549,31 @@ public class MapFragment extends Fragment {
         alertDialog.show();
     }
 
+    private void confirmDeleteMarker(final Context context, final int sharedWaypointId){
+        final AlertDialog alertDialog = new AlertDialog.Builder(context).create();
+        alertDialog.setMessage(context.getString(R.string.confirm_delete));
+        alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, context.getString(R.string.ok), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                wayPointDatabaseReference.child(String.valueOf(sharedWaypointId)).removeValue();
+            }
+        });
+        alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, context.getString(R.string.cancel), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                alertDialog.dismiss();
+            }
+        });
+        alertDialog.setCancelable(true);
+        alertDialog.show();
+    }
+
+    private int getMarkerIndex(Marker marker){
+        for (Map.Entry<Integer, Marker> sharedWaypoint : sharedWayPoints.entrySet()){
+            if(marker.getId().equals(sharedWaypoint.getValue().getId())){
+                return sharedWaypoint.getKey();
+            }
+        }
+        return -1;
+    }
 }
