@@ -1,14 +1,16 @@
-package com.cnam.greta;
+package com.cnam.greta.ui;
 
 import android.Manifest;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.provider.Settings;
-
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -17,24 +19,25 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
-import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
-public class MainActivity extends AppCompatActivity {
+import com.cnam.greta.R;
+import com.cnam.greta.services.LocationService;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+
+public class MainActivity extends AppCompatActivity{
 
     public static final int PERMISSIONS_REQUEST_LOCATION_CODE = 1;
     public static final int PERMISSIONS_REQUEST_LOCATION_SETTINGS_CODE = 2;
+
+    private LocationService locationService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         BottomNavigationView navView = findViewById(R.id.nav_view);
-        AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.navigation_settings, R.id.navigation_map, R.id.navigation_history)
-                .build();
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
-        NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
         NavigationUI.setupWithNavController(navView, navController);
         requestLocationPermission();
     }
@@ -42,6 +45,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        final Intent intent = new Intent(this.getApplication(), LocationService.class);
+        startService(intent);
+        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unbindService(serviceConnection);
     }
 
     @Override
@@ -65,7 +77,7 @@ public class MainActivity extends AppCompatActivity {
      * Request location's permission
      */
     private void requestLocationPermission() {
-        if ( ContextCompat.checkSelfPermission( this, android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED ) {
+        if (ContextCompat.checkSelfPermission( this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSIONS_REQUEST_LOCATION_CODE);
         }
     }
@@ -80,14 +92,11 @@ public class MainActivity extends AppCompatActivity {
             .setPositiveButton(R.string.grant, new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int which) {
                     if(!shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)){
-                        // User checked "Do not ask again"
-                        // Open the Android settings
                         Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
                         Uri uri = Uri.fromParts("package", getPackageName(), null);
                         intent.setData(uri);
                         startActivityForResult(intent, PERMISSIONS_REQUEST_LOCATION_SETTINGS_CODE);
                     } else {
-                        // Ask again
                         requestLocationPermission();
                     }
                 }
@@ -95,11 +104,21 @@ public class MainActivity extends AppCompatActivity {
             .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    // Close the app
                     finish();
                 }
             })
             .setCancelable(false)
             .show();
     }
+
+
+    private ServiceConnection serviceConnection = new ServiceConnection() {
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            locationService = ((LocationService.LocationServiceBinder) service).getService();
+        }
+
+        public void onServiceDisconnected(ComponentName className) {
+            locationService = null;
+        }
+    };
 }
