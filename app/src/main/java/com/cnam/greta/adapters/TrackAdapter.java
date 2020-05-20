@@ -25,8 +25,11 @@ import com.cnam.greta.data.entities.TrackDetails;
 import com.cnam.greta.data.entities.WayPoint;
 import com.cnam.greta.data.repositories.TrackRepository;
 import com.cnam.greta.ui.TrackDetailsActivity;
+import com.cnam.greta.utils.DistanceFormatter;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHolder> {
 
@@ -48,9 +51,21 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHol
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(holder.itemView.getContext());
         String unit = sharedPreferences.getString(holder.itemView.getContext().getString(R.string.measure_key), holder.itemView.getContext().getString(R.string.measure_default));
         TrackDetails track = mTracks.get(position);
+
+        String formattedDistance = DistanceFormatter.format((int) computeDistance(holder.itemView.getContext(), track.getWayPoints(), unit), false, unit);
+        if(formattedDistance == null || formattedDistance.equals("")){
+            formattedDistance = "0";
+        }
+        long time = computeTime(track.getWayPoints());
+        String formattedTime = String.format(Locale.getDefault(), "%02d:%02d:%02d",
+                TimeUnit.MILLISECONDS.toHours(time),
+                TimeUnit.MILLISECONDS.toMinutes(time) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(time)), // The change is in this line
+                TimeUnit.MILLISECONDS.toSeconds(time) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(time))
+        );
+
         holder.name.setText(track.getTrack().getTrackName());
-        holder.distance.setText(String.format(holder.itemView.getContext().getString(R.string.distance_holder), computeDistance(holder.itemView.getContext(), track.getWayPoints(), unit)));
-        holder.duration.setText(String.format(holder.itemView.getContext().getString(R.string.duration_holder), computeTime(track.getWayPoints())));
+        holder.distance.setText(String.format(holder.itemView.getContext().getString(R.string.distance_holder), formattedDistance));
+        holder.duration.setText(String.format(holder.itemView.getContext().getString(R.string.duration_holder), formattedTime));
         holder.waypoints.setText(String.format(holder.itemView.getContext().getString(R.string.waypoints_hodler), track.getWayPoints() != null ? track.getWayPoints().size() : 0));
     }
 
@@ -177,7 +192,7 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHol
             alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, context.getString(R.string.ok), new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    new TrackRepository(context).delete(mTracks.get(getAdapterPosition()).getTrack().getTrackId());
+                    new TrackRepository(context).delete(mTracks.get(getAdapterPosition()).getTrack());
                 }
             });
             alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, context.getString(R.string.cancel), new DialogInterface.OnClickListener() {

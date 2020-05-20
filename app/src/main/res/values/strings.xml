@@ -30,8 +30,8 @@
     <string name="localisation_automatic_title">Automatic</string>
     <string name="title_activity_track_details">Map</string>
     <string name="extra_track_id" translatable="false">extra_track_details</string>
-    <string name="distance_holder">Distance : %d</string>
-    <string name="duration_holder">Duration : %d</string>
+    <string name="distance_holder">Distance : %s</string>
+    <string name="duration_holder">Duration : %s</string>
     <string name="waypoints_hodler">Waypoints : %d</string>
     <string name="start_tracking">Start tracking</string>
     <string name="stop_tracking">Stop tracking</string>
