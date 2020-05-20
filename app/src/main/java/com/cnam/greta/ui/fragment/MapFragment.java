@@ -49,6 +49,7 @@ import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
+import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
@@ -188,8 +189,7 @@ public class MapFragment extends Fragment {
                                     (double) sharedWaypoint.get(FirebaseConstants.LONGITUDE)
                             ))
                             .title((String) sharedWaypoint.get(FirebaseConstants.NAME))
-                            .icon(BitmapDescriptorFactory
-                                    .defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
                     ));
                 }
             }
@@ -242,6 +242,10 @@ public class MapFragment extends Fragment {
             mGoogleMap.setOnMarkerClickListener(markerClickListener);
             mGoogleMap.setOnInfoWindowCloseListener(onInfoWindowCloseListener);
             mGoogleMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
+
+            usersDatabaseReference.addChildEventListener(usersListener);
+            wayPointDatabaseReference.addChildEventListener(sharedWaypointsListener);
+
             if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 mGoogleMap.setMyLocationEnabled(true);
                 mGoogleMap.getUiSettings().setMyLocationButtonEnabled(true);
@@ -365,6 +369,7 @@ public class MapFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        MapsInitializer.initialize(requireContext().getApplicationContext());
         usersDatabaseReference = FirebaseDatabase.getInstance()
                 .getReference(FirebaseConstants.DATA)
                 .child(FirebaseConstants.USERS);
@@ -419,8 +424,6 @@ public class MapFragment extends Fragment {
     public void onResume() {
         super.onResume();
         mMapView.onResume();
-        usersDatabaseReference.addChildEventListener(usersListener);
-        wayPointDatabaseReference.addChildEventListener(sharedWaypointsListener);
         Intent intent = new Intent(requireActivity(), LocationService.class);
         requireActivity().bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
     }

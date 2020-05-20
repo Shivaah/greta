@@ -29,6 +29,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.location.Location;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
@@ -395,42 +396,52 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
         }
     };
 
-    private HashMap<String, UserPosition> users = new HashMap<>();
     private DatabaseReference usersDatabaseReference;
 
     private final ChildEventListener usersListener = new ChildEventListener() {
         @SuppressLint("HardwareIds")
         @Override
         public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-            if(dataSnapshot.getKey() != null && !dataSnapshot.getKey().equals(Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ANDROID_ID))){
+            if(dataSnapshot.getKey() != null){
                 HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
                 if(user != null){
                     UserPosition userPosition = new UserPosition();
                     userPosition.setUsername((String) user.get(FirebaseConstants.USERNAME));
-                    userPosition.setAltitude((double) user.get(FirebaseConstants.ALTITUDE));
+                    //userPosition.setAltitude((double) user.get(FirebaseConstants.ALTITUDE));
                     userPosition.setLatitude((double) user.get(FirebaseConstants.LATITUDE));
                     userPosition.setLongitude((double) user.get(FirebaseConstants.LONGITUDE));
-                    user.put(dataSnapshot.getKey(), userPosition);
+                    if(dataSnapshot.getKey().equals(Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ANDROID_ID))){
+                        compass.setLocation(userPosition);
+                    } else {
+                        compass.addUserLocation(dataSnapshot.getKey(), userPosition);
+                    }
+                }
+            }
+        }
+
+        @SuppressLint("HardwareIds")
+        @Override
+        public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+            if(dataSnapshot.getKey() != null){
+                HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
+                if(user != null){
+                    UserPosition userPosition = new UserPosition();
+                    userPosition.setUsername((String) user.get(FirebaseConstants.USERNAME));
+                    //userPosition.setAltitude((double) user.get(FirebaseConstants.ALTITUDE));
+                    userPosition.setLatitude((double) user.get(FirebaseConstants.LATITUDE));
+                    userPosition.setLongitude((double) user.get(FirebaseConstants.LONGITUDE));
+                    if(dataSnapshot.getKey().equals(Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ANDROID_ID))){
+                        compass.setLocation(userPosition);
+                    } else {
+                        compass.addUserLocation(dataSnapshot.getKey(), userPosition);
+                    }
                 }
             }
         }
 
         @Override
-        public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-            UserPosition userPosition = users.get(dataSnapshot.getKey());
-            HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
-            if(user != null && userPosition != null){
-                userPosition.setUsername((String) user.get(FirebaseConstants.USERNAME));
-                userPosition.setAltitude((double) user.get(FirebaseConstants.ALTITUDE));
-                userPosition.setLatitude((double) user.get(FirebaseConstants.LATITUDE));
-                userPosition.setLongitude((double) user.get(FirebaseConstants.LONGITUDE));
-                user.put(dataSnapshot.getKey(), userPosition);
-            }
-        }
-
-        @Override
         public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
-            users.remove(dataSnapshot.getKey());
+            compass.removeUser(dataSnapshot.getKey());
         }
 
         @Override

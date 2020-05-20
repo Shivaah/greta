@@ -59,6 +59,13 @@ public class LocationService extends Service {
         @SuppressLint("HardwareIds")
         @Override
         public void onLocationChanged(Location location) {
+
+            Location test = new Location(location);
+            test.setLatitude(43.1237889);
+            test.setLongitude(5.9552382);
+
+            location.bearingTo(test);
+
             SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 
             usersDatabaseReference.child(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID))
