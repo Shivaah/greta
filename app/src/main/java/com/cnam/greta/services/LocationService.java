@@ -24,6 +24,7 @@ import androidx.lifecycle.Observer;
 import androidx.preference.PreferenceManager;
 
 import com.cnam.greta.R;
+import com.cnam.greta.data.FirebaseConstants;
 import com.cnam.greta.data.entities.Track;
 import com.cnam.greta.data.entities.WayPoint;
 import com.cnam.greta.data.repositories.TrackRepository;
@@ -129,8 +130,8 @@ public class LocationService extends Service {
     public void onCreate() {
         wayPointRepository = new WayPointRepository(getApplicationContext());
         usersDatabaseReference = FirebaseDatabase.getInstance()
-                .getReference(getString(R.string.firebase_child_data))
-                .child(getString(R.string.firebase_child_users));
+                .getReference(FirebaseConstants.DATA)
+                .child(FirebaseConstants.USERS);
 
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         sharedPreferences.registerOnSharedPreferenceChangeListener(sharedPreferenceChangeListener);
