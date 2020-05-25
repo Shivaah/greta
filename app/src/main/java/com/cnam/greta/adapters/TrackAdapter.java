@@ -22,7 +22,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.cnam.greta.R;
 import com.cnam.greta.data.entities.TrackDetails;
-import com.cnam.greta.data.entities.WayPoint;
 import com.cnam.greta.data.repositories.TrackRepository;
 import com.cnam.greta.ui.TrackDetailsActivity;
 import com.cnam.greta.utils.DistanceFormatter;
@@ -34,9 +33,20 @@ import java.util.concurrent.TimeUnit;
 public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHolder> {
 
     private List<TrackDetails> mTracks;
+    private boolean isTracking = false;
 
     public TrackAdapter(List<TrackDetails> tracks) {
         this.mTracks = tracks;
+    }
+
+    public void setTracks(List<TrackDetails> mTracks) {
+        this.mTracks = mTracks;
+        notifyDataSetChanged();
+    }
+
+    public void setTracking(boolean tracking) {
+        isTracking = tracking;
+        notifyDataSetChanged();
     }
 
     @NonNull
@@ -48,25 +58,30 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHol
 
     @Override
     public void onBindViewHolder(@NonNull TrackViewHolder holder, int position) {
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(holder.itemView.getContext());
-        String unit = sharedPreferences.getString(holder.itemView.getContext().getString(R.string.measure_key), holder.itemView.getContext().getString(R.string.measure_default));
-        TrackDetails track = mTracks.get(position);
+        if (isTracking && position == 0){
+            holder.itemView.setVisibility(View.GONE);
+            holder.itemView.setLayoutParams(new RecyclerView.LayoutParams(0, 0));
+        } else {
+            SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(holder.itemView.getContext());
+            String unit = sharedPreferences.getString(holder.itemView.getContext().getString(R.string.measure_key), holder.itemView.getContext().getString(R.string.measure_default));
+            TrackDetails track = mTracks.get(position);
 
-        String formattedDistance = DistanceFormatter.format((int) computeDistance(holder.itemView.getContext(), track.getWayPoints(), unit), false, unit);
-        if(formattedDistance == null || formattedDistance.equals("")){
-            formattedDistance = "0";
+            String formattedDistance = DistanceFormatter.format((int) track.computeDistance(holder.itemView.getContext(), unit), false, unit);
+            if(formattedDistance == null || formattedDistance.equals("")){
+                formattedDistance = "0";
+            }
+            long time = track.computeTime();
+            String formattedTime = String.format(Locale.getDefault(), "%02d:%02d:%02d",
+                    TimeUnit.MILLISECONDS.toHours(time),
+                    TimeUnit.MILLISECONDS.toMinutes(time) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(time)), // The change is in this line
+                    TimeUnit.MILLISECONDS.toSeconds(time) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(time))
+            );
+
+            holder.name.setText(track.getTrack().getTrackName());
+            holder.distance.setText(String.format(holder.itemView.getContext().getString(R.string.distance_holder), formattedDistance));
+            holder.duration.setText(String.format(holder.itemView.getContext().getString(R.string.duration_holder), formattedTime));
+            holder.waypoints.setText(String.format(holder.itemView.getContext().getString(R.string.waypoints_hodler), track.getWayPoints() != null ? track.getWayPoints().size() : 0));
         }
-        long time = computeTime(track.getWayPoints());
-        String formattedTime = String.format(Locale.getDefault(), "%02d:%02d:%02d",
-                TimeUnit.MILLISECONDS.toHours(time),
-                TimeUnit.MILLISECONDS.toMinutes(time) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(time)), // The change is in this line
-                TimeUnit.MILLISECONDS.toSeconds(time) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(time))
-        );
-
-        holder.name.setText(track.getTrack().getTrackName());
-        holder.distance.setText(String.format(holder.itemView.getContext().getString(R.string.distance_holder), formattedDistance));
-        holder.duration.setText(String.format(holder.itemView.getContext().getString(R.string.duration_holder), formattedTime));
-        holder.waypoints.setText(String.format(holder.itemView.getContext().getString(R.string.waypoints_hodler), track.getWayPoints() != null ? track.getWayPoints().size() : 0));
     }
 
     @Override
@@ -75,37 +90,6 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHol
             return 0;
         }
         return mTracks.size();
-    }
-
-    private long computeDistance(Context context, List<WayPoint> wayPoints, String unit){
-        long total = 0;
-        for (int i = 0; i < wayPoints.size() - 1; i++){
-            WayPoint point1 = wayPoints.get(i);
-            WayPoint point2 = wayPoints.get(i + 1);
-            if (!((point1.getLatitude() == point2.getLongitude()) && (point1.getLatitude() == point2.getLongitude()))) {
-                double theta = point1.getLatitude() - point2.getLongitude();
-                double dist = Math.sin(Math.toRadians(point1.getLatitude())) * Math.sin(Math.toRadians(point2.getLatitude())) + Math.cos(Math.toRadians(point1.getLatitude())) * Math.cos(Math.toRadians(point2.getLatitude())) * Math.cos(Math.toRadians(theta));
-                dist = Math.acos(dist);
-                dist = Math.toDegrees(dist);
-                dist = dist * 60 * 1.1515;
-                if (unit.equals(context.getString(R.string.measure_default))) {
-                    dist = dist * 1.609344;
-                } else {
-                    dist = dist * 0.8684;
-                }
-                total += dist;
-            }
-        }
-        return total;
-    }
-
-    private long computeTime(List<WayPoint> wayPoints){
-        if(wayPoints.size() == 0 || wayPoints.size() == 1){
-            return 0;
-        }
-        WayPoint point1 = wayPoints.get(0);
-        WayPoint point2 = wayPoints.get(wayPoints.size() - 1);
-        return point2.getTime() - point1.getTime();
     }
 
     public class TrackViewHolder extends RecyclerView.ViewHolder {

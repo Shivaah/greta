@@ -173,6 +173,7 @@ public class MapFragment extends Fragment {
 
                     default:
                         WayPoint wayPoint = dataSnapshot.getValue(WayPoint.class);
+
                         Objects.requireNonNull(trackDetails).getWayPoints().add(Integer.parseInt(dataSnapshot.getKey()), wayPoint);
 
                         float altitudeRatio = (float) (wayPoint.getAltitude() / 4000);
@@ -452,12 +453,12 @@ public class MapFragment extends Fragment {
     private ServiceConnection serviceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder service) {
             locationService = ((LocationService.LocationServiceBinder) service).getService();
-            locationService.setLocationListener(locationListener);
+            locationService.addLocationListener(locationListener);
             updateTrackingButton(locationService.isTracking());
         }
 
         public void onServiceDisconnected(ComponentName className) {
-            locationService.removeLocationListener();
+            locationService.removeLocationListener(locationListener);
             updateTrackingButton(locationService.isTracking());
             locationService = null;
         }
@@ -560,8 +561,10 @@ public class MapFragment extends Fragment {
     private void updateTrackingButton(boolean isTracking){
         if(isTracking){
             ((TextView) rootView.findViewById(R.id.track_buttton_text)).setText(requireContext().getString(R.string.stop_tracking));
+            cameraButton.setVisibility(View.VISIBLE);
         } else {
             ((TextView) rootView.findViewById(R.id.track_buttton_text)).setText(requireContext().getString(R.string.start_tracking));
+            cameraButton.setVisibility(View.GONE);
         }
     }
 

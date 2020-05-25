@@ -65,5 +65,6 @@
     <string name="set_marker_name">Give the marker a name</string>
     <string name="invalid_marker_name">Invalid marker name</string>
     <string name="delete_marker">Delete marker</string>
+    <string name="rename">Rename</string>
 
 </resources>

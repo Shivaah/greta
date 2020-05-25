@@ -31,7 +31,9 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 @SuppressLint("HardwareIds")
@@ -50,7 +52,8 @@ public class LocationService extends Service {
     private SharedPreferences sharedPreferences;
     private boolean pedestrianMode;
 
-    private LocationListener locationListener;
+    private List<LocationListener> locationListeners = new ArrayList<>();
+    private List<TrackListener> trackListeners = new ArrayList<>();
 
     private int wayPointIndex;
 
@@ -87,29 +90,37 @@ public class LocationService extends Service {
                 }
             }
 
-            if(locationListener != null){
-                locationListener.onLocationChanged(location);
+            for (LocationListener locationListener : locationListeners){
+                if(locationListener != null){
+                    locationListener.onLocationChanged(location);
+                }
             }
         }
 
         @Override
         public void onStatusChanged(String provider, int status, Bundle extras) {
-            if(locationListener != null){
-                locationListener.onStatusChanged(provider, status, extras);
+            for (LocationListener locationListener : locationListeners){
+                if(locationListener != null){
+                    locationListener.onStatusChanged(provider, status, extras);
+                }
             }
         }
 
         @Override
         public void onProviderEnabled(String provider) {
-            if(locationListener != null){
-                locationListener.onProviderEnabled(provider);
+            for (LocationListener locationListener : locationListeners){
+                if(locationListener != null){
+                    locationListener.onProviderEnabled(provider);
+                }
             }
         }
 
         @Override
         public void onProviderDisabled(String provider) {
-            if(locationListener != null){
-                locationListener.onProviderDisabled(provider);
+            for (LocationListener locationListener : locationListeners){
+                if(locationListener != null){
+                    locationListener.onProviderDisabled(provider);
+                }
             }
         }
     };
@@ -184,6 +195,11 @@ public class LocationService extends Service {
             @Override
             public void onChanged(Long id) {
                 mTrack.setTrackId(id);
+                for (TrackListener trackListener : trackListeners){
+                    if(trackListener != null){
+                        trackListener.onStartTracking(id);
+                    }
+                }
                 trackId.removeObserver(this);
             }
         });
@@ -252,6 +268,11 @@ public class LocationService extends Service {
         isTracking = false;
         usersDatabaseReference.child(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID)).removeValue();
         mLocationManager = null;
+        for (TrackListener trackListener : trackListeners){
+            if(trackListener != null && mTrack != null){
+                trackListener.onStopTracking(mTrack.getTrackId());
+            }
+        }
         onDestroy();
     }
 
@@ -259,18 +280,34 @@ public class LocationService extends Service {
         return isTracking;
     }
 
-    public void removeLocationListener() {
-        this.locationListener = null;
+    public void addLocationListener(LocationListener listener){
+        locationListeners.add(listener);
     }
 
-    public void setLocationListener(LocationListener locationListener) {
-        this.locationListener = locationListener;
+    public void removeLocationListener(LocationListener listener) {
+        locationListeners.remove(listener);
+    }
+
+    public void addTrackListener(TrackListener listener){
+        trackListeners.add(listener);
+        if (isTracking){
+            listener.onStartTracking(mTrack.getTrackId());
+        }
+    }
+
+    public void removeTrackListener(TrackListener listener) {
+        trackListeners.remove(listener);
     }
 
     public class LocationServiceBinder extends Binder {
         public LocationService getService() {
             return LocationService.this;
         }
+    }
+
+    public interface TrackListener{
+        void onStartTracking(long trackId);
+        void onStopTracking(long trackId);
     }
 
 }

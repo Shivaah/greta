@@ -20,7 +20,7 @@ public interface TrackDao extends BaseDao<Track> {
     LiveData<Track> getTrack(long id);
 
     @Transaction
-    @Query("SELECT * FROM Track")
+    @Query("SELECT * FROM Track ORDER BY trackId DESC")
     LiveData<List<TrackDetails>> fetchAllTrackDetails();
 
     @Transaction
