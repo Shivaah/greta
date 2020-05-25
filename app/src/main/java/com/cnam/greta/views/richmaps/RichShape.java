@@ -88,6 +88,16 @@ public abstract class RichShape {
         return this;
     }
 
+    public RichShape add(final int index, final RichPoint point) {
+        if (point != null) {
+            if (point.getColor() == null) {
+                point.color(strokeColor);
+            }
+            points.add(index, point);
+        }
+        return this;
+    }
+
     public int getZIndex() {
         return this.zIndex;
     }

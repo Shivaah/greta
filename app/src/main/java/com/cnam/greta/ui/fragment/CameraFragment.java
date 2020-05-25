@@ -29,7 +29,6 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
-import android.location.Location;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
@@ -55,12 +54,9 @@ import androidx.fragment.app.Fragment;
 
 import com.cnam.greta.R;
 import com.cnam.greta.data.FirebaseConstants;
-import com.cnam.greta.data.entities.UserPosition;
+import com.cnam.greta.data.entities.WayPoint;
 import com.cnam.greta.views.AutoFitTextureView;
 import com.cnam.greta.views.CompassView;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -75,7 +71,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
@@ -365,6 +360,7 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
     private Sensor mMagnetic;
     float[] gravity;
     float[] geomagnetic;
+    private String hardwareId;
 
     private SensorEventListener sensorEventListener = new SensorEventListener() {
         @Override
@@ -398,55 +394,84 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
 
     private DatabaseReference usersDatabaseReference;
 
+    /**
+     * Callback for Firebase data changes on "users" childs
+     */
     private final ChildEventListener usersListener = new ChildEventListener() {
         @SuppressLint("HardwareIds")
         @Override
         public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
             if(dataSnapshot.getKey() != null){
-                HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
-                if(user != null){
-                    UserPosition userPosition = new UserPosition();
-                    userPosition.setUsername((String) user.get(FirebaseConstants.USERNAME));
-                    //userPosition.setAltitude((double) user.get(FirebaseConstants.ALTITUDE));
-                    userPosition.setLatitude((double) user.get(FirebaseConstants.LATITUDE));
-                    userPosition.setLongitude((double) user.get(FirebaseConstants.LONGITUDE));
-                    if(dataSnapshot.getKey().equals(Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ANDROID_ID))){
-                        compass.setLocation(userPosition);
-                    } else {
-                        compass.addUserLocation(dataSnapshot.getKey(), userPosition);
-                    }
+                //Attach listener to child
+                usersDatabaseReference.child(dataSnapshot.getKey())
+                        .addChildEventListener(singleUserChildEventListener);
+            }
+        }
+
+        @Override
+        public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+            //Ignore
+        }
+
+        @Override
+        public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
+            if(dataSnapshot.getKey() != null){
+                usersDatabaseReference.child(dataSnapshot.getKey()).removeEventListener(singleUserChildEventListener);
+                compass.removeUser(dataSnapshot.getKey());
+            }
+        }
+
+        @Override
+        public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+            //Ignore
+        }
+
+        @Override
+        public void onCancelled(@NonNull DatabaseError databaseError) {
+            Log.w(this.getClass().getSimpleName(), databaseError.getMessage());
+        }
+    };
+
+    private final ChildEventListener singleUserChildEventListener = new ChildEventListener() {
+        @Override
+        public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+            if (dataSnapshot.getKey() != null){
+                String id = Objects.requireNonNull(dataSnapshot.getRef().getParent()).getKey();
+                switch (dataSnapshot.getKey()){
+                    case FirebaseConstants.USERNAME:
+                        compass.setUserName(id, dataSnapshot.getValue(String.class));
+                        break;
+
+                    default:
+                        WayPoint wayPoint = dataSnapshot.getValue(WayPoint.class);
+                        if(wayPoint != null){
+                            if(hardwareId.equals(id)){
+                                compass.setMyPosition(wayPoint.getLatitude(), wayPoint.getLongitude(), wayPoint.getAltitude());
+                            } else {
+                                compass.setUserPosition(id, wayPoint.getLatitude(), wayPoint.getLongitude(), wayPoint.getAltitude());
+                            }
+                        }
+                        break;
                 }
             }
         }
 
-        @SuppressLint("HardwareIds")
         @Override
         public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-            if(dataSnapshot.getKey() != null){
-                HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
-                if(user != null){
-                    UserPosition userPosition = new UserPosition();
-                    userPosition.setUsername((String) user.get(FirebaseConstants.USERNAME));
-                    //userPosition.setAltitude((double) user.get(FirebaseConstants.ALTITUDE));
-                    userPosition.setLatitude((double) user.get(FirebaseConstants.LATITUDE));
-                    userPosition.setLongitude((double) user.get(FirebaseConstants.LONGITUDE));
-                    if(dataSnapshot.getKey().equals(Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ANDROID_ID))){
-                        compass.setLocation(userPosition);
-                    } else {
-                        compass.addUserLocation(dataSnapshot.getKey(), userPosition);
-                    }
-                }
+            if (dataSnapshot.getKey() != null && dataSnapshot.getKey().equals(FirebaseConstants.USERNAME)) {
+                String id = Objects.requireNonNull(dataSnapshot.getRef().getParent()).getKey();
+                compass.setUserName(id, (String) dataSnapshot.getValue());
             }
         }
 
         @Override
         public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
-            compass.removeUser(dataSnapshot.getKey());
+            //Ignore
         }
 
         @Override
         public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-
+            //Ignore
         }
 
         @Override
@@ -524,12 +549,15 @@ public class CameraFragment extends Fragment implements ActivityCompat.OnRequest
         return new CameraFragment();
     }
 
+    @SuppressLint("HardwareIds")
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         usersDatabaseReference = FirebaseDatabase.getInstance()
                 .getReference(FirebaseConstants.DATA)
                 .child(FirebaseConstants.USERS);
+
+        hardwareId = Settings.Secure.getString(requireActivity().getContentResolver(), Settings.Secure.ANDROID_ID);
     }
 
     @Override

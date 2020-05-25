@@ -8,12 +8,10 @@ import android.graphics.Paint;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 
 import com.cnam.greta.R;
-import com.cnam.greta.data.entities.UserPosition;
-import com.google.android.gms.maps.model.LatLng;
+import com.cnam.greta.models.UserPosition;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,7 +24,7 @@ public class CompassView extends View {
     private float mDegrees, mTextSize, mRangeDegrees;
 
     private UserPosition myPosition;
-    private HashMap<String, UserPosition> userLocations;
+    private HashMap<String, UserPosition> userPositions;
     private int[] userDirections;
     private String[] userNames;
 
@@ -67,7 +65,7 @@ public class CompassView extends View {
         mTertiaryLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mTertiaryLinePaint.setStrokeWidth(3f);
 
-        userLocations = new HashMap<>();
+        userPositions = new HashMap<>();
     }
 
     @Override
@@ -280,33 +278,56 @@ public class CompassView extends View {
         requestLayout();
     }
 
-    public void setLocation(UserPosition myPosition){
-        this.myPosition = myPosition;
+    public void setMyPosition(double latitude, double longitude, double altitude){
+        UserPosition userPosition = new UserPosition();
+        userPosition.setLatitude(latitude);
+        userPosition.setLongitude(longitude);
+        userPosition.setAltitude(altitude);
+        this.myPosition = userPosition;
         reComputeDirections();
         invalidate();
         requestLayout();
     }
 
-    public void addUserLocation(String hashId, UserPosition userPosition){
-        userLocations.put(hashId, userPosition);
+    public void setUserPosition(String hashId, double latitude, double longitude, double altitude){
+        UserPosition userPosition = this.userPositions.get(hashId);
+        if(userPosition == null){
+            userPosition = new UserPosition();
+        }
+        userPosition.setLatitude(latitude);
+        userPosition.setLongitude(longitude);
+        userPosition.setAltitude(altitude);
+        userPositions.put(hashId, userPosition);
         reComputeDirections();
         invalidate();
         requestLayout();
     }
 
-    public void removeUser(String key) {
-        userLocations.remove(key);
+    public void setUserName(String hashId, String username){
+        UserPosition userPosition = this.userPositions.get(hashId);
+        if(userPosition == null){
+            userPosition = new UserPosition();
+        }
+        userPosition.setUsername(username);
+        userPositions.put(hashId, userPosition);
+        reComputeDirections();
+        invalidate();
+        requestLayout();
+    }
+
+    public void removeUser(String hashId) {
+        userPositions.remove(hashId);
         reComputeDirections();
         invalidate();
         requestLayout();
     }
 
     private void reComputeDirections(){
-        if(myPosition != null && userLocations != null && userLocations.size() != 0){
-            userDirections = new int[userLocations.size()];
-            userNames = new String[userLocations.size()];
+        if(myPosition != null && userPositions != null && userPositions.size() != 0){
+            userDirections = new int[userPositions.size()];
+            userNames = new String[userPositions.size()];
             int i = 0;
-            for (Map.Entry<String, UserPosition> userLocation : userLocations.entrySet()){
+            for (Map.Entry<String, UserPosition> userLocation : userPositions.entrySet()){
                 userDirections[i] = (int) computeBearing(myPosition, userLocation.getValue());
                 userNames[i] = userLocation.getValue().getUsername();
                 i++;

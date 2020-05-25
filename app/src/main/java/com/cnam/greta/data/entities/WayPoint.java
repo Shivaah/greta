@@ -5,14 +5,18 @@ import androidx.room.Entity;
 import androidx.room.ForeignKey;
 import androidx.room.PrimaryKey;
 
+import com.google.firebase.database.Exclude;
+
 import static androidx.room.ForeignKey.CASCADE;
 
 @Entity
 public class WayPoint{
 
     @PrimaryKey(autoGenerate = true)
+    @Exclude
     private int wayPointId;
     @ForeignKey(entity = Track.class, parentColumns = "trackId", childColumns = "wayPointId", onDelete = CASCADE)
+    @Exclude
     private long trackId;
     private double latitude;
     private double longitude;

@@ -11,13 +11,11 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Binder;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.util.Log;
 
-import androidx.annotation.RequiresApi;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
@@ -29,7 +27,6 @@ import com.cnam.greta.data.entities.Track;
 import com.cnam.greta.data.entities.WayPoint;
 import com.cnam.greta.data.repositories.TrackRepository;
 import com.cnam.greta.data.repositories.WayPointRepository;
-import com.cnam.greta.data.entities.UserPosition;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
@@ -37,6 +34,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+@SuppressLint("HardwareIds")
 public class LocationService extends Service {
 
     private final LocationServiceBinder binder = new LocationServiceBinder();
@@ -52,29 +50,14 @@ public class LocationService extends Service {
     private SharedPreferences sharedPreferences;
     private boolean pedestrianMode;
 
-    private TrackListener trackListener;
+    private LocationListener locationListener;
+
+    private int wayPointIndex;
 
     private final LocationListener mLocationListener = new LocationListener() {
 
-        @SuppressLint("HardwareIds")
         @Override
-        public void onLocationChanged(Location location) {
-
-            Location test = new Location(location);
-            test.setLatitude(43.1237889);
-            test.setLongitude(5.9552382);
-
-            location.bearingTo(test);
-
-            SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-
-            usersDatabaseReference.child(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID))
-                .setValue(new UserPosition(
-                        sharedPreferences.getString(getString(R.string.username_key), getString(R.string.unknown_user)),
-                        location.getLatitude(),
-                        location.getLongitude(),
-                        location.getAltitude()
-                ));
+        public void onLocationChanged(final Location location) {
 
             WayPoint wayPoint = new WayPoint();
             wayPoint.setAltitude(location.getAltitude());
@@ -82,6 +65,13 @@ public class LocationService extends Service {
             wayPoint.setLongitude(location.getLongitude());
             wayPoint.setTime(System.currentTimeMillis());
             wayPoint.setTrackId(mTrack.getTrackId());
+
+            usersDatabaseReference.child(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID))
+                    .child(String.valueOf(wayPointIndex))
+                    .setValue(wayPoint);
+
+            wayPointIndex++;
+
             wayPointRepository.insert(wayPoint);
 
             //Above 10kmh
@@ -96,28 +86,42 @@ public class LocationService extends Service {
                     setLocationManagerListener();
                 }
             }
+
+            if(locationListener != null){
+                locationListener.onLocationChanged(location);
+            }
         }
 
         @Override
         public void onStatusChanged(String provider, int status, Bundle extras) {
-
+            if(locationListener != null){
+                locationListener.onStatusChanged(provider, status, extras);
+            }
         }
 
         @Override
         public void onProviderEnabled(String provider) {
-
+            if(locationListener != null){
+                locationListener.onProviderEnabled(provider);
+            }
         }
 
         @Override
         public void onProviderDisabled(String provider) {
-
+            if(locationListener != null){
+                locationListener.onProviderDisabled(provider);
+            }
         }
     };
 
     private final SharedPreferences.OnSharedPreferenceChangeListener sharedPreferenceChangeListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
         @Override
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-            setLocationManagerListener();
+            if(key.equals(getString(R.string.username_key))){
+                setUsername();
+            } else {
+                setLocationManagerListener();
+            }
         }
     };
 
@@ -132,7 +136,6 @@ public class LocationService extends Service {
         return START_STICKY;
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onCreate() {
         wayPointRepository = new WayPointRepository(getApplicationContext());
@@ -146,11 +149,19 @@ public class LocationService extends Service {
     }
 
     @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        super.onTaskRemoved(rootIntent);
+        stopTracking();
+    }
+
+    @Override
     public void onDestroy() {
         super.onDestroy();
         if (mLocationManager != null) {
             try {
                 mLocationManager.removeUpdates(mLocationListener);
+                usersDatabaseReference.child(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID))
+                        .removeValue();
                 usersDatabaseReference = null;
                 trackRepository = null;
                 wayPointRepository = null;
@@ -167,15 +178,13 @@ public class LocationService extends Service {
         }
         mTrack = new Track();
         mTrack.setTrackName("Track : " + new SimpleDateFormat("dd MMM yyyy HH:mm:ss", Locale.getDefault()).format(new Date(System.currentTimeMillis())));
+        mTrack.setOwnerName(sharedPreferences.getString(getString(R.string.username_key), getString(R.string.username_title)));
         final LiveData<Long> trackId = trackRepository.insert(mTrack);
         trackId.observeForever(new Observer<Long>() {
             @Override
             public void onChanged(Long id) {
                 mTrack.setTrackId(id);
                 trackId.removeObserver(this);
-                if(trackListener != null){
-                    trackListener.onTrackReady(mTrack);
-                }
             }
         });
     }
@@ -220,38 +229,42 @@ public class LocationService extends Service {
         }
     }
 
+    private void setUsername(){
+        usersDatabaseReference.child(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID))
+                .child(getString(R.string.username_key))
+                .setValue(sharedPreferences.getString(getString(R.string.username_key), getString(R.string.username_key)));
+    }
+
     public void startTracking() {
         try {
             initializeLocationManager();
             setLocationManagerListener();
             initializeTrack();
             isTracking = true;
+            wayPointIndex = 0;
+            setUsername();
         } catch (Exception e){
           e.printStackTrace();
         }
     }
 
-    @SuppressLint("HardwareIds")
     public void stopTracking() {
         isTracking = false;
         usersDatabaseReference.child(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID)).removeValue();
         mLocationManager = null;
-        this.onDestroy();
+        onDestroy();
     }
 
     public boolean isTracking() {
         return isTracking;
     }
 
-    public void removeTrackListener() {
-        trackListener = null;
+    public void removeLocationListener() {
+        this.locationListener = null;
     }
 
-    public void setTrackListener(TrackListener trackListener) {
-        this.trackListener = trackListener;
-        if(mTrack != null && mTrack.getTrackId() != 0){
-            trackListener.onTrackReady(mTrack);
-        }
+    public void setLocationListener(LocationListener locationListener) {
+        this.locationListener = locationListener;
     }
 
     public class LocationServiceBinder extends Binder {
@@ -260,7 +273,4 @@ public class LocationService extends Service {
         }
     }
 
-    public interface TrackListener{
-        void onTrackReady(Track track);
-    }
 }

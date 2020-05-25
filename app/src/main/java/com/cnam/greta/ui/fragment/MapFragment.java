@@ -9,6 +9,8 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.location.Location;
+import android.location.LocationListener;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
@@ -27,23 +29,21 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.Observer;
 import androidx.preference.PreferenceManager;
 
 import com.cnam.greta.R;
 import com.cnam.greta.data.FirebaseConstants;
-import com.cnam.greta.data.entities.SharedWayPoint;
+import com.cnam.greta.models.SharedWayPoint;
 import com.cnam.greta.data.entities.Track;
 import com.cnam.greta.data.entities.TrackDetails;
 import com.cnam.greta.data.entities.WayPoint;
-import com.cnam.greta.data.repositories.TrackRepository;
 import com.cnam.greta.services.LocationService;
 import com.cnam.greta.ui.CameraActivity;
 import com.cnam.greta.views.AltimeterView;
 import com.cnam.greta.views.richmaps.RichLayer;
 import com.cnam.greta.views.richmaps.RichPoint;
 import com.cnam.greta.views.richmaps.RichPolylineOptions;
+import com.cnam.greta.views.richmaps.RichShape;
 import com.github.pengrad.mapscaleview.MapScaleView;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -62,9 +62,11 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class MapFragment extends Fragment {
 
@@ -91,37 +93,10 @@ public class MapFragment extends Fragment {
     //Data
     private HashMap<String, Marker> markers = new HashMap<>();
     private HashMap<Integer, Marker> sharedWayPoints = new HashMap<>();
-    private LiveData<TrackDetails> currentTrackDetails;
+    private HashMap<String, TrackDetails> usersTrackDetailList = new HashMap<>();
+    private HashMap<String, RichShape> usersPolylines = new HashMap<>();
     private Marker selectedMarker;
-
-    private final Observer<TrackDetails> trackDetailsObserver = new Observer<TrackDetails>() {
-        @Override
-        public void onChanged(TrackDetails trackDetails) {
-            //Update the UI
-            if(trackDetails.getWayPoints().size() != 0){
-                List<WayPoint> wayPoints = trackDetails.getWayPoints();
-                RichPolylineOptions polylineOpts = new RichPolylineOptions(null)
-                        .zIndex(3)
-                        .strokeWidth(15)
-                        .strokeColor(Color.GRAY)
-                        .linearGradient(true);
-                for (WayPoint wayPoint : wayPoints){
-                    float altitudeRatio = (float) (wayPoint.getAltitude() / 4000);
-                    int color = Color.HSVToColor(255, new float[]{altitudeRatio * 360, 1.0f, 0.8f});
-                    polylineOpts.add(new RichPoint(new LatLng(wayPoint.getLatitude(), wayPoint.getLongitude())).color(color));
-                }
-                WayPoint lastWayPoint = trackDetails.getWayPoints().get(trackDetails.getWayPoints().size() - 1);
-                richLayer.addShape(polylineOpts.build());
-                if(mGoogleMap.getUiSettings().isMyLocationButtonEnabled()){
-                    CameraUpdate center= CameraUpdateFactory.newLatLng(new LatLng(lastWayPoint.getLatitude(), lastWayPoint.getLongitude()));
-                    CameraUpdate zoom = CameraUpdateFactory.zoomTo(16);
-                    mGoogleMap.moveCamera(center);
-                    mGoogleMap.animateCamera(zoom);
-                }
-                mAltimeterView.setAltitude((float) lastWayPoint.getAltitude());
-            }
-        }
-    };
+    private String hardwareId;
 
     /**
      * Callback for Firebase data changes on "users" childs
@@ -130,42 +105,115 @@ public class MapFragment extends Fragment {
         @SuppressLint("HardwareIds")
         @Override
         public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-            if(dataSnapshot.getKey() != null && !dataSnapshot.getKey().equals(Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ANDROID_ID))){
-                HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
-                if(user != null){
-                    markers.put(dataSnapshot.getKey(), mGoogleMap.addMarker(new MarkerOptions()
-                            .position(new LatLng(
-                                    (double) user.get(FirebaseConstants.LATITUDE),
-                                    (double) user.get(FirebaseConstants.LONGITUDE)
-                            ))
-                            .title((String) user.get(FirebaseConstants.USERNAME))
-                    ));
+            if(dataSnapshot.getKey() != null){
+                //Create new user track
+                TrackDetails trackDetails = new TrackDetails();
+                trackDetails.setTrack(new Track());
+                trackDetails.setWayPoints(new ArrayList<WayPoint>());
+                usersTrackDetailList.put(dataSnapshot.getKey(), trackDetails);
+                //Attach listener to child
+                usersDatabaseReference.child(dataSnapshot.getKey())
+                        .addChildEventListener(singleUserChildEventListener);
+                //Create Polyline for drawing user path
+                richLayer.addShape(usersPolylines.put(dataSnapshot.getKey(),
+                        new RichPolylineOptions(null)
+                            .zIndex(3)
+                            .strokeWidth(15)
+                            .strokeColor(Color.BLACK)
+                            .linearGradient(true)
+                            .build()
+                ));
+            }
+        }
+
+        @Override
+        public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+            //Ignore
+        }
+
+        @Override
+        public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
+            if(dataSnapshot.getKey() != null){
+                usersTrackDetailList.remove(dataSnapshot.getKey());
+                usersDatabaseReference.child(dataSnapshot.getKey()).removeEventListener(singleUserChildEventListener);
+                richLayer.removeShape(usersPolylines.remove(dataSnapshot.getKey()));
+                richLayer.refresh();
+                if(markers.get(dataSnapshot.getKey()) != null){
+                    Objects.requireNonNull(markers.get(dataSnapshot.getKey())).remove();
+                    markers.remove(dataSnapshot.getKey());
+                }
+            }
+        }
+
+        @Override
+        public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+            //Ignore
+        }
+
+        @Override
+        public void onCancelled(@NonNull DatabaseError databaseError) {
+            Log.w(this.getClass().getSimpleName(), databaseError.getMessage());
+        }
+    };
+
+    private final ChildEventListener singleUserChildEventListener = new ChildEventListener() {
+        @Override
+        public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+            if (dataSnapshot.getKey() != null){
+                String id = Objects.requireNonNull(dataSnapshot.getRef().getParent()).getKey();
+                TrackDetails trackDetails = usersTrackDetailList.get(id);
+                switch (dataSnapshot.getKey()){
+
+                    case FirebaseConstants.USERNAME:
+                        Objects.requireNonNull(trackDetails).getTrack().setOwnerName((String) dataSnapshot.getValue());
+                        if(markers.get(id) != null){
+                            Objects.requireNonNull(markers.get(id)).setTitle((String) dataSnapshot.getValue());
+                        }
+                        break;
+
+                    default:
+                        WayPoint wayPoint = dataSnapshot.getValue(WayPoint.class);
+                        Objects.requireNonNull(trackDetails).getWayPoints().add(Integer.parseInt(dataSnapshot.getKey()), wayPoint);
+
+                        float altitudeRatio = (float) (wayPoint.getAltitude() / 4000);
+                        int color = Color.HSVToColor(255, new float[]{altitudeRatio * 360, 1.0f, 0.8f});
+                        Objects.requireNonNull(usersPolylines.get(id)).add(Integer.parseInt(dataSnapshot.getKey()), new RichPoint(new LatLng(wayPoint.getLatitude(), wayPoint.getLongitude())).color(color));
+                        richLayer.addShape(Objects.requireNonNull(usersPolylines.get(id)));
+                        richLayer.refresh();
+                        //If last known position, update the marker
+                        if(!id.equals(hardwareId) &&  trackDetails.getWayPoints().size() - 1 == Integer.parseInt(dataSnapshot.getKey())){
+                            if(markers.get(id) != null){
+                                Objects.requireNonNull(markers.get(id)).setPosition(new LatLng(wayPoint.getLatitude(), wayPoint.getLongitude()));
+                            } else {
+                                markers.put(id, mGoogleMap.addMarker(new MarkerOptions()
+                                        .position(new LatLng(wayPoint.getLatitude(), wayPoint.getLongitude()))
+                                        .title(trackDetails.getTrack().getOwnerName())
+                                ));
+                            }
+                        }
+
+                        break;
                 }
             }
         }
 
         @Override
         public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-            Marker marker = markers.get(dataSnapshot.getKey());
-            HashMap<String, Object> user = (HashMap<String, Object>) dataSnapshot.getValue();
-            if(user != null && marker != null){
-                marker.setTitle((String) user.get(FirebaseConstants.USERNAME));
-                marker.setPosition(new LatLng(
-                        (double) user.get(FirebaseConstants.LATITUDE),
-                        (double) user.get(FirebaseConstants.LONGITUDE)
-                ));
-                markers.put(dataSnapshot.getKey(), marker);
+            if (dataSnapshot.getKey() != null && dataSnapshot.getKey().equals(FirebaseConstants.USERNAME)) {
+                String id = Objects.requireNonNull(dataSnapshot.getRef().getParent()).getKey();
+                TrackDetails trackDetails = usersTrackDetailList.get(id);
+                Objects.requireNonNull(trackDetails).getTrack().setOwnerName((String) dataSnapshot.getValue());
             }
         }
 
         @Override
         public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
-            markers.remove(dataSnapshot.getKey());
+            //Ignore
         }
 
         @Override
         public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-
+            //Ignore
         }
 
         @Override
@@ -254,14 +302,40 @@ public class MapFragment extends Fragment {
         }
     };
 
-    private final LocationService.TrackListener trackListener = new LocationService.TrackListener() {
+    /**
+     * On track fully initialized
+     */
+    private final LocationListener locationListener = new LocationListener() {
         @Override
-        public void onTrackReady(Track track) {
-            currentTrackDetails = new TrackRepository(requireContext()).getTrackDetails(track.getTrackId());
-            currentTrackDetails.observe(getViewLifecycleOwner(), trackDetailsObserver);
+        public void onLocationChanged(Location location) {
+            if(mGoogleMap != null && mGoogleMap.getUiSettings().isMyLocationButtonEnabled()){
+                CameraUpdate center= CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude()));
+                CameraUpdate zoom = CameraUpdateFactory.zoomTo(16);
+                mGoogleMap.moveCamera(center);
+                mGoogleMap.animateCamera(zoom);
+            }
+            mAltimeterView.setAltitude((float) location.getAltitude());
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+
         }
     };
 
+    /**
+     * Google Maps camera not moving
+     */
     private final GoogleMap.OnCameraIdleListener mOnCameraChangeListener = new GoogleMap.OnCameraIdleListener() {
         @Override
         public void onCameraIdle() {
@@ -273,6 +347,9 @@ public class MapFragment extends Fragment {
         }
     };
 
+    /**
+     * Google Maps camera is moving
+     */
     private final GoogleMap.OnCameraMoveListener mOnCameraMoveListener = new GoogleMap.OnCameraMoveListener() {
         @Override
         public void onCameraMove() {
@@ -281,6 +358,9 @@ public class MapFragment extends Fragment {
         }
     };
 
+    /**
+     * Start / stop tracking button
+     */
     private final View.OnClickListener trackButtonClickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
@@ -301,6 +381,9 @@ public class MapFragment extends Fragment {
         }
     };
 
+    /**
+     * Camera button
+     */
     private final View.OnClickListener cameraButtonClickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
@@ -309,6 +392,9 @@ public class MapFragment extends Fragment {
         }
     };
 
+    /**
+     * Delete marker button
+     */
     private final View.OnClickListener deleteMarkerButtonClickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
@@ -321,6 +407,9 @@ public class MapFragment extends Fragment {
         }
     };
 
+    /**
+     * Google Maps long click
+     */
     private final GoogleMap.OnMapLongClickListener mapLongClickListener = new GoogleMap.OnMapLongClickListener() {
         @Override
         public void onMapLongClick(LatLng latLng) {
@@ -328,6 +417,9 @@ public class MapFragment extends Fragment {
         }
     };
 
+    /**
+     * Google Maps Marker click listener
+     */
     private final GoogleMap.OnMarkerClickListener markerClickListener = new GoogleMap.OnMarkerClickListener() {
         @Override
         public boolean onMarkerClick(Marker marker) {
@@ -340,6 +432,9 @@ public class MapFragment extends Fragment {
         }
     };
 
+    /**
+     * Marker's window is closed
+     */
     private final GoogleMap.OnInfoWindowCloseListener onInfoWindowCloseListener = new GoogleMap.OnInfoWindowCloseListener() {
         @Override
         public void onInfoWindowClose(Marker marker) {
@@ -351,21 +446,24 @@ public class MapFragment extends Fragment {
         }
     };
 
+    /**
+     * Service connection callback
+     */
     private ServiceConnection serviceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder service) {
             locationService = ((LocationService.LocationServiceBinder) service).getService();
-            locationService.setTrackListener(trackListener);
+            locationService.setLocationListener(locationListener);
             updateTrackingButton(locationService.isTracking());
         }
 
         public void onServiceDisconnected(ComponentName className) {
-            currentTrackDetails.removeObserver(trackDetailsObserver);
-            locationService.removeTrackListener();
+            locationService.removeLocationListener();
             updateTrackingButton(locationService.isTracking());
             locationService = null;
         }
     };
 
+    @SuppressLint("HardwareIds")
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -377,6 +475,8 @@ public class MapFragment extends Fragment {
         wayPointDatabaseReference = FirebaseDatabase.getInstance()
                 .getReference(FirebaseConstants.DATA)
                 .child(FirebaseConstants.SHARED_WAYPOINTS);
+
+        hardwareId = Settings.Secure.getString(requireActivity().getContentResolver(), Settings.Secure.ANDROID_ID);
     }
 
     @Override
@@ -423,7 +523,9 @@ public class MapFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        mMapView.onResume();
+        if(mMapView != null){
+            mMapView.onResume();
+        }
         Intent intent = new Intent(requireActivity(), LocationService.class);
         requireActivity().bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
     }
@@ -431,7 +533,9 @@ public class MapFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
-        mMapView.onPause();
+        if(mMapView != null){
+            mMapView.onPause();
+        }
         usersDatabaseReference.removeEventListener(usersListener);
         usersDatabaseReference.removeEventListener(sharedWaypointsListener);
         requireActivity().unbindService(serviceConnection);
@@ -440,13 +544,17 @@ public class MapFragment extends Fragment {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        mMapView.onDestroy();
+        if(mMapView != null){
+            mMapView.onDestroy();
+        }
     }
 
     @Override
     public void onLowMemory() {
         super.onLowMemory();
-        mMapView.onLowMemory();
+        if(mMapView != null){
+            mMapView.onLowMemory();
+        }
     }
 
     private void updateTrackingButton(boolean isTracking){

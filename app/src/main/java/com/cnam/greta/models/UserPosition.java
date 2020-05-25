@@ -1,4 +1,4 @@
-package com.cnam.greta.data.entities;
+package com.cnam.greta.models;
 
 public class UserPosition {
 

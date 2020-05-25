@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 /**
  * Local database
  */
-@Database(entities = {Track.class, WayPoint.class}, version = 1, exportSchema = false)
+@Database(entities = {Track.class, WayPoint.class}, version = 2, exportSchema = false)
 public abstract class GretaDatabase extends RoomDatabase {
 
     public abstract TrackDao trackDao();
@@ -32,7 +32,9 @@ public abstract class GretaDatabase extends RoomDatabase {
         if (INSTANCE == null) {
             synchronized (GretaDatabase.class) {
                 if (INSTANCE == null) {
-                    INSTANCE = Room.databaseBuilder(context.getApplicationContext(), GretaDatabase.class, DATABASE_NAME).build();
+                    INSTANCE = Room.databaseBuilder(context.getApplicationContext(), GretaDatabase.class, DATABASE_NAME)
+                            .fallbackToDestructiveMigration() //Allow destructive migration
+                            .build();
                 }
             }
         }

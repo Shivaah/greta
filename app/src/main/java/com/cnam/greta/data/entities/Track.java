@@ -4,11 +4,12 @@ import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
 @Entity
-public class Track{
+public class Track {
 
     @PrimaryKey(autoGenerate = true)
     private long trackId;
     private String trackName;
+    private String ownerName;
 
     public long getTrackId() {
         return trackId;
@@ -26,4 +27,11 @@ public class Track{
         this.trackName = trackName;
     }
 
+    public String getOwnerName() {
+        return ownerName;
+    }
+
+    public void setOwnerName(String ownerName) {
+        this.ownerName = ownerName;
+    }
 }
