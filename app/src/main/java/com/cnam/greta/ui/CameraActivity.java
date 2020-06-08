@@ -7,6 +7,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.cnam.greta.R;
 import com.cnam.greta.ui.fragment.CameraFragment;
 
+/**
+ * Activité de réalité augmentée.
+ */
 public class CameraActivity extends AppCompatActivity {
 
     @Override

@@ -31,6 +31,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Activité de suivi d'une piste existante dans notre historique.
+ */
 public class TrackDetailsActivity extends FragmentActivity{
 
     private GoogleMap mGoogleMap;

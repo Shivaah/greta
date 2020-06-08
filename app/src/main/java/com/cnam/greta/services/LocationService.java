@@ -36,6 +36,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Collecte les informations GPS.
+ */
 @SuppressLint("HardwareIds")
 public class LocationService extends Service {
 
@@ -57,6 +60,9 @@ public class LocationService extends Service {
 
     private int wayPointIndex;
 
+    /**
+     * Listener des données GPS.
+     */
     private final LocationListener mLocationListener = new LocationListener() {
 
         @Override
@@ -69,12 +75,18 @@ public class LocationService extends Service {
             wayPoint.setTime(System.currentTimeMillis());
             wayPoint.setTrackId(mTrack.getTrackId());
 
+            /**
+             * Envoie des données à Firebase.
+             */
             usersDatabaseReference.child(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID))
                     .child(String.valueOf(wayPointIndex))
                     .setValue(wayPoint);
 
             wayPointIndex++;
 
+            /**
+             * Insert les données dans la base de données locale.
+             */
             wayPointRepository.insert(wayPoint);
 
             //Above 10kmh
@@ -90,6 +102,9 @@ public class LocationService extends Service {
                 }
             }
 
+            /**
+             * Notifie tous les listeners enregistrés au service.
+             */
             for (LocationListener locationListener : locationListeners){
                 if(locationListener != null){
                     locationListener.onLocationChanged(location);
@@ -125,6 +140,9 @@ public class LocationService extends Service {
         }
     };
 
+    /**
+     * Listener des préférences utilisateur.
+     */
     private final SharedPreferences.OnSharedPreferenceChangeListener sharedPreferenceChangeListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
         @Override
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
@@ -183,6 +201,9 @@ public class LocationService extends Service {
         sharedPreferences.unregisterOnSharedPreferenceChangeListener(sharedPreferenceChangeListener);
     }
 
+    /**
+     * Crée une nouvelle Track et l'insert en base de données.
+     */
     private void initializeTrack(){
         if(trackRepository == null){
             trackRepository = new TrackRepository(getApplicationContext());
@@ -211,6 +232,9 @@ public class LocationService extends Service {
         }
     }
 
+    /**
+     * Enregistre le listener des données GPS selon les paramètres utilisateur.
+     */
     private void setLocationManagerListener(){
         try {
             if (mLocationManager != null && ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -245,12 +269,18 @@ public class LocationService extends Service {
         }
     }
 
+    /**
+     * Met à jour le nom de l'utilisateur dans Firebase.
+     */
     private void setUsername(){
         usersDatabaseReference.child(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID))
                 .child(getString(R.string.username_key))
                 .setValue(sharedPreferences.getString(getString(R.string.username_key), getString(R.string.username_key)));
     }
 
+    /**
+     * Inistialise les fonctionnalités de localisation.
+     */
     public void startTracking() {
         try {
             initializeLocationManager();
@@ -264,6 +294,9 @@ public class LocationService extends Service {
         }
     }
 
+    /**
+     * Supprime les fonctionnalités de localisation.
+     */
     public void stopTracking() {
         isTracking = false;
         usersDatabaseReference.child(Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID)).removeValue();

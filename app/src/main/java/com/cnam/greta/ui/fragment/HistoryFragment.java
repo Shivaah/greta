@@ -56,6 +56,9 @@ public class HistoryFragment extends Fragment {
 
     private LiveData<List<TrackDetails>> trackDetailsList;
 
+    /**
+     * Met à jour la section de la piste actuelle.
+     */
     private Observer<TrackDetails> trackDetailsObserver = new Observer<TrackDetails>() {
         @Override
         public void onChanged(TrackDetails trackDetails) {
@@ -94,6 +97,9 @@ public class HistoryFragment extends Fragment {
         }
     };
 
+    /**
+     * Communication avec le location service.
+     */
     private final LocationService.TrackListener trackListener = new LocationService.TrackListener() {
         @Override
         public void onStartTracking(long trackId) {
@@ -182,6 +188,10 @@ public class HistoryFragment extends Fragment {
         requireActivity().unbindService(serviceConnection);
     }
 
+    /**
+     * Mise à jour de l'UI.
+     * @param visible
+     */
     private void setCurrentTrackVisibility(boolean visible){
         if(visible){
             currentTrackLayout.setVisibility(View.VISIBLE);

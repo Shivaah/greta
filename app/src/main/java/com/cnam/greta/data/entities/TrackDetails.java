@@ -32,6 +32,14 @@ public class TrackDetails{
         this.wayPoints = wayPoint;
     }
 
+    /**
+     * Calcule la distance entre le premier et le dernier waypoint.
+     *
+     * @param context
+     * @param unit
+     *
+     * @return
+     */
     public long computeDistance(Context context, String unit){
         long total = 0;
         for (int i = 0; i < wayPoints.size() - 1; i++){
@@ -54,6 +62,11 @@ public class TrackDetails{
         return total;
     }
 
+    /**
+     * Calcule la différence de temps entre le premier et le dernier waypoint.
+     *
+     * @return
+     */
     public long computeTime(){
         if(wayPoints.size() == 0 || wayPoints.size() == 1){
             return 0;
